@@ -205,6 +205,19 @@ body{max-width:600px;margin:0 auto;min-height:100vh}
 .review-panel.confirmer h4{color:var(--green)}
 
 @media(max-width:360px){.chk-pill{padding:4px 8px;font-size:10px}}
+
+/* 종합의견 입력 모드 */
+.op-mode-row{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+.op-mode-btn{flex:1;padding:8px 4px;border:none;background:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-hint);display:flex;align-items:center;justify-content:center;gap:5px;border-right:1px solid var(--border);transition:.15s}
+.op-mode-btn:last-child{border-right:none}
+.op-mode-btn.active{background:var(--blue-light);color:var(--blue)}
+.op-canvas-wrap{border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:#f8faff;position:relative;overflow:hidden;touch-action:none}
+.op-canvas-wrap canvas{display:block;cursor:crosshair}
+.op-canvas-tools{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.op-tool-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text-sub)}
+.op-tool-btn.active{background:var(--blue-light);border-color:var(--blue-mid);color:var(--blue)}
+.op-pen-size{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-hint)}
+.op-pen-size input[type=range]{width:70px;accent-color:var(--blue)}
   </style>
 </head>
 <body>
@@ -414,7 +427,7 @@ function doLogin(){
     document.getElementById('login-pw').value='';
     document.getElementById('tab-record').style.display=loginRole==='agent'?'flex':'none';
     document.getElementById('tab-print').style.display=(loginRole==='manager'||loginRole==='confirmer')?'flex':'none';
-    document.getElementById('tab-settings').style.display=loginRole==='confirmer'?'flex':'none';
+    document.getElementById('tab-settings').style.display=(loginRole==='confirmer'||loginRole==='manager')?'flex':'none';
     document.getElementById('home-fab').style.display=loginRole==='agent'?'flex':'none';
     updateFlow();updateStats();renderHomeRecent();goTab('home');
   } else {
@@ -547,7 +560,28 @@ function renderForm(rec){
       </div>
     </div>
     <div class="card"><div class="card-title"><div class="ico">📝</div> 종합의견</div>
-      <textarea class="opinion-ta" id="rf_op" placeholder="점검내역, 부적합 개보수 의견 등을 기록하세요."></textarea>
+      <!-- 모드 스위처 -->
+      <div class="op-mode-row">
+        <button class="op-mode-btn active" id="op-mode-keyboard" onclick="setOpMode('keyboard')">⌨️ 키보드 입력</button>
+        <button class="op-mode-btn" id="op-mode-pen" onclick="setOpMode('pen')">🖊️ 펜으로 작성</button>
+      </div>
+      <!-- 키보드 입력 -->
+      <div id="op-keyboard-area">
+        <textarea class="opinion-ta" id="rf_op" placeholder="점검내역, 부적합 개보수 의견 등을 기록하세요."></textarea>
+      </div>
+      <!-- 펜 입력 -->
+      <div id="op-pen-area" style="display:none">
+        <div class="op-canvas-tools">
+          <button class="op-tool-btn active" id="op-tool-pen" onclick="setOpTool('pen')">🖊️ 펜</button>
+          <button class="op-tool-btn" id="op-tool-eraser" onclick="setOpTool('eraser')">🧹 지우개</button>
+          <div class="op-pen-size"><span>굵기</span><input type="range" id="op-pen-size" min="1" max="10" value="2" oninput="updatePenSize()"></div>
+          <button class="op-tool-btn" onclick="clearOpCanvas()" style="margin-left:auto;color:var(--red)">전체 지우기</button>
+        </div>
+        <div class="op-canvas-wrap" id="op-canvas-wrap">
+          <canvas id="op-canvas" style="width:100%;height:180px"></canvas>
+        </div>
+        <div style="font-size:10px;color:var(--text-hint);margin-top:5px;text-align:center">손가락 또는 스타일러스로 자유롭게 작성하세요</div>
+      </div>
     </div>
     <div class="card"><div class="card-title"><div class="ico">✍️</div> 서명</div>
       <div class="fg"><span class="fl">담당자명</span><input class="fi" id="rf_agent" placeholder="성명"></div>
@@ -565,7 +599,7 @@ function renderForm(rec){
   buildItems(LOW,'lo','lo-items');
   buildItems(HIGH,'hi','hi-items');
   document.getElementById('rf_date').valueAsDate=new Date();
-  setTimeout(()=>initSig(),200);
+  setTimeout(()=>{initSig();initOpCanvas();},200);
 
   if(rec){
     sv('rf_name',rec.name);sv('rf_date',rec.date);sv('rf_type',rec.type);
@@ -627,7 +661,7 @@ function collectForm(status){
     name:vv('rf_name'),date:vv('rf_date'),type:vv('rf_type'),cnt:vv('rf_cnt'),
     rv:vv('rf_rv'),rk:vv('rf_rk'),gv:vv('rf_gv'),gk:vv('rf_gk'),sl:vv('rf_sl'),
     loState:[...loState],hiState:[...hiState],meas,
-    op:vv('rf_op'),agentName:vv('rf_agent'),agentOrg:vv('rf_org'),sig0:sigData,
+    op:collectOpinion(),agentName:vv('rf_agent'),agentOrg:vv('rf_org'),sig0:sigData,opMode:currentOpMode,
     updatedAt:new Date().toISOString()
   };
 }
@@ -654,6 +688,100 @@ function submitRecord(){
   showBanner('rf-banner','b-success','✅ 업무담당자에게 제출되었습니다!');
   editingId=null;
   setTimeout(()=>{updateStats();startNewRecord();},1500);
+}
+
+// ── 종합의견 ──
+let currentOpMode='keyboard';
+let opTool='pen';
+let opDrawing=false;
+let opLp={x:0,y:0};
+let opImageData=null;
+
+function setOpMode(mode){
+  currentOpMode=mode;
+  document.getElementById('op-mode-keyboard').classList.toggle('active',mode==='keyboard');
+  document.getElementById('op-mode-pen').classList.toggle('active',mode==='pen');
+  document.getElementById('op-keyboard-area').style.display=mode==='keyboard'?'block':'none';
+  document.getElementById('op-pen-area').style.display=mode==='pen'?'block':'none';
+  if(mode==='pen')setTimeout(initOpCanvas,100);
+}
+
+function setOpTool(tool){
+  opTool=tool;
+  document.getElementById('op-tool-pen').classList.toggle('active',tool==='pen');
+  document.getElementById('op-tool-eraser').classList.toggle('active',tool==='eraser');
+}
+
+function updatePenSize(){}
+
+function initOpCanvas(){
+  const canvas=document.getElementById('op-canvas');
+  if(!canvas)return;
+  const wrap=document.getElementById('op-canvas-wrap');
+  const W=wrap.offsetWidth||340;
+  if(canvas.width!==W){
+    canvas.width=W;
+    canvas.height=180;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#f8faff';
+    ctx.fillRect(0,0,W,180);
+    // 가로 줄 그리기
+    ctx.strokeStyle='#dce3ef';ctx.lineWidth=0.5;
+    for(let y=30;y<180;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    if(opImageData&&opImageData.width===W){
+      canvas.getContext('2d').putImageData(opImageData,0,0);
+    }
+  }
+  setupOpEvents(canvas);
+}
+
+function setupOpEvents(canvas){
+  if(canvas._opReady)return;
+  canvas._opReady=true;
+  const getP=e=>{
+    const r=canvas.getBoundingClientRect();
+    const s=e.touches?e.touches[0]:e;
+    return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};
+  };
+  const dn=e=>{
+    e.preventDefault();opDrawing=true;opLp=getP(e);
+    const ctx=canvas.getContext('2d');
+    const sz=parseInt(document.getElementById('op-pen-size')?.value||2);
+    if(opTool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.lineWidth=sz*4;}
+    else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle='#1a1a2e';ctx.lineWidth=sz;}
+    ctx.lineCap='round';ctx.lineJoin='round';
+  };
+  const mv=e=>{
+    e.preventDefault();if(!opDrawing)return;
+    const ctx=canvas.getContext('2d');
+    const p=getP(e);
+    ctx.beginPath();ctx.moveTo(opLp.x,opLp.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+    opLp=p;
+  };
+  const up=e=>{
+    opDrawing=false;
+    const ctx=canvas.getContext('2d');
+    ctx.globalCompositeOperation='source-over';
+    opImageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+  };
+  canvas.addEventListener('mousedown',dn);canvas.addEventListener('mousemove',mv);canvas.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',dn,{passive:false});canvas.addEventListener('touchmove',mv,{passive:false});canvas.addEventListener('touchend',up);
+}
+
+function clearOpCanvas(){
+  const canvas=document.getElementById('op-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#f8faff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#dce3ef';ctx.lineWidth=0.5;
+  for(let y=30;y<180;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  opImageData=null;
+}
+
+function collectOpinion(){
+  if(currentOpMode==='keyboard') return vv('rf_op');
+  const canvas=document.getElementById('op-canvas');
+  return canvas?canvas.toDataURL():'';
 }
 
 // ── 서명 ──
@@ -820,7 +948,7 @@ function openDetail(id){
 
     ${measHtml}
 
-    ${rec.op?`<div style="background:var(--gray-light);border-radius:var(--radius-sm);padding:10px 12px;margin:10px 0;font-size:12px"><b>종합의견</b><div style="margin-top:4px;color:var(--text-sub);line-height:1.7">${rec.op}</div></div>`:''}
+    ${rec.op?`<div style="background:var(--gray-light);border-radius:var(--radius-sm);padding:10px 12px;margin:10px 0;font-size:12px"><b>종합의견</b><div style="margin-top:4px">${rec.opMode==='pen'?`<img src="${rec.op}" style="max-width:100%;height:auto;border-radius:4px">`:`<span style="color:var(--text-sub);line-height:1.7">${rec.op}</span>`}</div></div>`:''}
 
     ${rec.sig0?`<div style="margin:10px 0"><div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:4px">업체담당자 서명</div><img src="${rec.sig0}" style="height:60px;border:1px solid var(--border);border-radius:6px"></div>`:''}
     ${rec.reviewOp?`<div style="font-size:12px;margin:8px 0;padding:8px 12px;background:var(--amber-light);border-radius:6px"><b>검토의견:</b> ${rec.reviewOp}</div>`:''}
@@ -1036,7 +1164,7 @@ function buildPrintHTML(rec){
       <tr>${th('역률 주간')}${th('역률 심야')}${th('유효전력kW')}${th('무효전력kVar')}${th('최대전력kW')}${th('배율')}</tr>
       <tr>${td(m.pf_day)}${td(m.pf_night)}${td(m.kw)}${td(m.kvar)}${td(m.mkw)}${td(m.ratio)}</tr>
     </table>
-    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><span style="font-size:7px;font-weight:600">종합의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.op}</div></div>`:''}
+    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><span style="font-size:7px;font-weight:600">종합의견</span><div style="margin-top:2px">${rec.opMode==='pen'?`<img src="${rec.op}" style="max-width:100%;height:auto;display:block">`:`<div style="font-size:8px;line-height:1.5">${rec.op}</div>`}</div></div>`:``}
     ${rec.reviewOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#854F0B">업무담당자 검토의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.reviewOp}</div></div>`:''}
     ${rec.approveOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#3B6D11">확인자 승인의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.approveOp}</div></div>`:''}
     <table style="width:100%;border-collapse:collapse;margin-top:5px">
