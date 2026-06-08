@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#185FA5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="전기설비점검">
+  <meta name="description" content="전기설비 점검결과 기록표">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>전기설비 점검 시스템</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#185FA5;--blue-dark:#0C447C;--blue-light:#E6F1FB;--blue-mid:#B5D4F4;
+  --green:#3B6D11;--green-light:#EAF3DE;--green-mid:#97C459;
+  --red:#A32D2D;--red-light:#FCEBEB;--red-mid:#F09595;
+  --amber:#854F0B;--amber-light:#FAEEDA;--amber-mid:#FAC775;
+  --gray-light:#F1F3F5;--border:#dce3ef;--border-mid:#b8c4d8;
+  --text:#1a1a2e;--text-sub:#5a6272;--text-hint:#9aa0ad;
+  --radius:12px;--radius-sm:8px;
+}
+html,body{height:100%;background:#EEF2F9;font-family:'Noto Sans KR',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+body{max-width:600px;margin:0 auto;min-height:100vh}
+
+/* 로그인 */
+.login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:#EEF2F9}
+.login-card{background:#fff;border-radius:var(--radius);padding:28px 24px;width:100%;max-width:360px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.login-logo{font-size:40px;text-align:center;margin-bottom:8px}
+.login-title{font-size:17px;font-weight:600;text-align:center;margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--text-hint);text-align:center;margin-bottom:24px}
+.role-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px}
+.role-btn{padding:10px 6px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fff;cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;color:var(--text-sub);text-align:center;transition:.15s}
+.role-btn.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.role-btn .ri{font-size:22px;display:block;margin-bottom:4px}
+.login-hint{font-size:10px;color:var(--text-hint);text-align:center;margin-top:10px}
+
+/* 헤더 */
+.hdr{background:var(--blue);color:#fff;padding:13px 16px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.hdr h1{font-size:14px;font-weight:600}
+.hdr p{font-size:10px;opacity:.75;margin-top:1px}
+.hdr-logout{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+
+/* 탭 */
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:199}
+.tab{flex:1;padding:9px 4px 7px;font-size:10px;border:none;background:none;cursor:pointer;font-family:inherit;color:var(--text-hint);display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2.5px solid transparent;transition:.15s}
+.tab .ti{font-size:19px}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* 페이지 */
+.page{display:none;padding:12px 12px 90px}
+.page.show{display:block}
+
+/* 카드 */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card-title{font-size:13px;font-weight:600;color:var(--blue-dark);display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--blue-light)}
+.card-title .ico{width:28px;height:28px;background:var(--blue-light);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+
+/* 통계 */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.stat-num{font-size:30px;font-weight:600}
+.stat-num.blue{color:var(--blue-dark)}.stat-num.amber{color:var(--amber)}.stat-num.green{color:var(--green)}.stat-num.red{color:var(--red)}
+.stat-lbl{font-size:11px;color:var(--text-hint);margin-top:3px}
+
+/* 결재흐름 */
+.flow{display:flex;align-items:center;gap:6px;padding:4px 0}
+.flow-step{flex:1;text-align:center;padding:10px 4px;border-radius:8px;border:1px solid var(--border);font-size:10px;background:var(--gray-light);color:var(--text-hint);line-height:1.6}
+.flow-step.active{background:var(--blue-light);border-color:var(--blue-mid);color:var(--blue-dark);font-weight:600}
+.flow-step.done{background:var(--green-light);border-color:var(--green-mid);color:var(--green);font-weight:600}
+.flow-arrow{color:var(--text-hint);font-size:14px;flex-shrink:0}
+
+/* 목록 */
+.filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px}
+.filter-btn{padding:5px 13px;border-radius:20px;border:1px solid var(--border);font-size:11px;background:#fff;color:var(--text-sub);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.filter-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:500}
+.rec-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.rec-card:active{background:var(--gray-light)}
+.rec-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.rec-name{font-size:13px;font-weight:500}
+.rec-date{font-size:11px;color:var(--text-hint)}
+.badge{padding:3px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
+.badge-draft{background:var(--gray-light);color:var(--text-sub)}
+.badge-submitted{background:var(--blue-light);color:var(--blue)}
+.badge-reviewed{background:var(--amber-light);color:var(--amber)}
+.badge-approved{background:var(--green-light);color:var(--green)}
+.badge-rejected{background:var(--red-light);color:var(--red)}
+.empty{text-align:center;padding:50px 20px;color:var(--text-hint);font-size:13px}
+.empty span{font-size:44px;display:block;margin-bottom:12px}
+
+/* 폼 */
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:11px}
+.fl{font-size:11px;font-weight:600;color:var(--text-sub)}
+.fi{height:38px;padding:0 11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f8faff;color:var(--text);font-size:13px;font-family:inherit;width:100%}
+.fi:focus{outline:none;border-color:var(--blue);background:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.divider{height:1px;background:var(--border);margin:12px 0}
+.cnt-row{display:flex;align-items:center;gap:7px}
+.cnt-btn{width:34px;height:34px;border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:var(--gray-light);cursor:pointer;font-size:17px;color:var(--blue);display:flex;align-items:center;justify-content:center;font-family:inherit;font-weight:600}
+.cnt-inp{width:60px;height:34px;text-align:center;border:1px solid var(--border-mid);border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:var(--blue-dark);background:#fff;font-family:inherit}
+
+/* 점검항목 */
+.item-row{padding:10px 0;border-bottom:1px solid var(--gray-light)}
+.item-row:last-child{border-bottom:none;padding-bottom:0}
+.item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.item-name{font-size:13px;font-weight:500}
+.chk-group{display:flex;gap:5px;flex-wrap:wrap}
+.chk-label{position:relative;cursor:pointer}
+.chk-label input[type=radio]{position:absolute;opacity:0;width:0;height:0}
+.chk-pill{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1.5px solid var(--border-mid);font-size:11px;font-weight:600;color:var(--text-hint);background:#fff;transition:all .15s;white-space:nowrap;user-select:none}
+.chk-pill .dot{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--border-mid);transition:all .15s;flex-shrink:0}
+.chk-label input:checked~.chk-pill.ok{background:var(--green-light);border-color:var(--green-mid);color:var(--green)}
+.chk-label input:checked~.chk-pill.ok .dot{background:var(--green);border-color:var(--green)}
+.chk-label input:checked~.chk-pill.ng{background:var(--red-light);border-color:var(--red-mid);color:var(--red)}
+.chk-label input:checked~.chk-pill.ng .dot{background:var(--red);border-color:var(--red)}
+.chk-label input:checked~.chk-pill.na{background:var(--blue-light);border-color:var(--blue-mid);color:var(--blue)}
+.chk-label input:checked~.chk-pill.na .dot{background:var(--blue);border-color:var(--blue)}
+.item-detail{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.detail-group{display:flex;align-items:center;gap:4px}
+.detail-lbl{font-size:10px;color:var(--text-hint);white-space:nowrap}
+.si{width:44px;height:26px;border:1px solid var(--border);border-radius:4px;text-align:center;font-size:11px;background:#f8faff;color:var(--text);font-family:inherit}
+
+/* 측정 */
+.meas-hdr{font-size:11px;font-weight:600;padding:7px 10px;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.meas-hdr.blue{background:var(--blue-light);color:var(--blue-dark)}
+.meas-hdr.amber{background:var(--amber-light);color:var(--amber)}
+.mpos-inp{height:24px;width:90px;border:1px solid var(--blue-mid);border-radius:4px;font-size:11px;padding:0 6px;background:#fff;color:var(--text);font-family:inherit}
+.meas-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}
+.meas-tbl th{background:var(--gray-light);padding:5px 4px;border:1px solid var(--border);color:var(--text-sub);font-weight:600;text-align:center}
+.meas-tbl td{border:1px solid var(--border);padding:3px;text-align:center}
+.meas-tbl td.ph{font-weight:600;color:var(--blue);background:#f8faff;width:32px}
+.meas-inp{width:100%;height:28px;border:none;background:none;text-align:center;font-size:11px;color:var(--text);font-family:inherit}
+.gen-grid{display:grid;grid-template-columns:28px 1fr 1fr 1fr;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:11px;margin-bottom:12px}
+.gg-hdr{background:var(--gray-light);padding:5px 4px;color:var(--text-sub);font-weight:600;text-align:center;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.gg-hdr:last-child{border-right:none}
+.gg-lbl{background:#fffaf3;font-size:13px;font-weight:700;color:var(--amber);border-right:1px solid var(--border);border-top:1px solid var(--border);text-align:center;display:flex;align-items:center;justify-content:center;min-height:32px}
+.gg-cell{border-right:1px solid var(--border);border-top:1px solid var(--border);padding:2px}
+.gg-cell:last-child{border-right:none}
+.gg-inp{width:100%;height:28px;border:none;background:none;text-align:center;font-size:11px;color:var(--text);font-family:inherit}
+.power-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.power-card{background:#F7FBFF;border:1px solid var(--blue-mid);border-radius:var(--radius-sm);padding:10px 12px}
+.power-lbl{font-size:10px;font-weight:600;color:var(--blue);margin-bottom:5px}
+.power-inp{width:100%;height:30px;border:1px solid var(--blue-mid);border-radius:4px;font-size:12px;padding:0 8px;background:#fff;color:var(--text);font-family:inherit}
+.opinion-ta{width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:inherit;resize:vertical;color:var(--text);background:#f8faff;line-height:1.7}
+
+/* 서명 */
+.sig-wrap{border:1.5px dashed var(--blue-mid);border-radius:var(--radius-sm);height:90px;position:relative;cursor:crosshair;background:#F7FBFF;overflow:hidden}
+.sig-wrap canvas{width:100%;height:100%;display:block}
+.sig-ph{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;color:var(--text-hint);pointer-events:none;text-align:center;line-height:1.8}
+.sig-clr{position:absolute;top:5px;right:7px;font-size:10px;background:#fff;border:1px solid var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;color:var(--text-sub);font-family:inherit}
+
+/* 버튼 */
+.btn-row{display:flex;gap:8px;margin-top:14px}
+.btn-p{background:var(--blue);color:#fff;border:none;padding:13px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-p:active{background:var(--blue-dark)}
+.btn-g{background:var(--green);color:#fff;border:none;padding:13px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-s{background:var(--gray-light);color:var(--text-sub);border:1px solid var(--border);padding:13px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid var(--red-mid);padding:13px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;border:none;padding:14px 28px;border-radius:30px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(24,95,165,.35);z-index:100;width:calc(100% - 48px);max-width:340px;justify-content:center}
+
+/* 배너 */
+.banner{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:10px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px}
+.b-warn{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-mid)}
+.b-info{background:var(--blue-light);color:var(--blue-dark);border:1px solid var(--blue-mid)}
+.b-success{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid)}
+.b-danger{background:var(--red-light);color:var(--red);border:1px solid var(--red-mid)}
+
+/* 모달 */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;padding:16px}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:var(--radius);padding:24px;width:100%;max-width:380px}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:6px}
+.modal p{font-size:12px;color:var(--text-sub);margin-bottom:16px;line-height:1.6}
+.modal .fi{margin-bottom:10px}
+.modal-btns{display:flex;gap:8px;margin-top:4px}
+.modal-btns button{flex:1;padding:11px;border-radius:var(--radius-sm);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.modal-cancel{background:var(--gray-light);color:var(--text-sub)}
+.modal-ok{background:var(--blue);color:#fff}
+
+/* 상세 모달 */
+.detail-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end;justify-content:center}
+.detail-modal-bg.show{display:flex}
+.detail-modal{background:#fff;border-radius:var(--radius) var(--radius) 0 0;padding:20px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto}
+.sig-wrap-review{border:1.5px dashed var(--blue-mid);border-radius:var(--radius-sm);height:90px;position:relative;cursor:crosshair;background:#F7FBFF;overflow:hidden;margin-top:6px}
+.sig-wrap-review canvas{width:100%;height:100%;display:block}
+
+/* 설정 */
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--gray-light)}
+.setting-row:last-child{border-bottom:none}
+.setting-lbl{font-size:13px;font-weight:500}
+.setting-sub{font-size:11px;color:var(--text-hint);margin-top:2px}
+.setting-btn{padding:6px 14px;border:1px solid var(--border-mid);border-radius:6px;background:var(--gray-light);font-size:11px;cursor:pointer;font-family:inherit;color:var(--text-sub)}
+
+/* 검토패널 */
+.review-panel{border-radius:var(--radius-sm);padding:14px;margin-bottom:10px}
+.review-panel.manager{background:var(--amber-light);border:1px solid var(--amber-mid)}
+.review-panel.confirmer{background:var(--green-light);border:1px solid var(--green-mid)}
+.review-panel h4{font-size:13px;font-weight:600;margin-bottom:10px}
+.review-panel.manager h4{color:var(--amber)}
+.review-panel.confirmer h4{color:var(--green)}
+
+@media(max-width:360px){.chk-pill{padding:4px 8px;font-size:10px}}
+
+/* 종합의견 입력 모드 */
+.op-mode-row{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+.op-mode-btn{flex:1;padding:8px 4px;border:none;background:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-hint);display:flex;align-items:center;justify-content:center;gap:5px;border-right:1px solid var(--border);transition:.15s}
+.op-mode-btn:last-child{border-right:none}
+.op-mode-btn.active{background:var(--blue-light);color:var(--blue)}
+.op-canvas-wrap{border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:#f8faff;position:relative;overflow:hidden;touch-action:none}
+.op-canvas-wrap canvas{display:block;cursor:crosshair}
+.op-canvas-tools{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.op-tool-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text-sub)}
+.op-tool-btn.active{background:var(--blue-light);border-color:var(--blue-mid);color:var(--blue)}
+.op-pen-size{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-hint)}
+.op-pen-size input[type=range]{width:70px;accent-color:var(--blue)}
+  </style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">⚡</div>
+    <div class="login-title">전기설비 점검 시스템</div>
+    <div class="login-sub">역할을 선택하고 비밀번호를 입력하세요</div>
+    <div class="role-btns">
+      <button class="role-btn selected" onclick="selectRole('agent')" id="role-agent"><span class="ri">🏢</span>업체담당자</button>
+      <button class="role-btn" onclick="selectRole('manager')" id="role-manager"><span class="ri">👔</span>업무담당자</button>
+      <button class="role-btn" onclick="selectRole('confirmer')" id="role-confirmer"><span class="ri">✅</span>확인자</button>
+    </div>
+    <div class="fg"><span class="fl">비밀번호</span>
+      <input class="fi" type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-err" style="font-size:11px;color:var(--red);margin-bottom:8px;display:none">비밀번호가 올바르지 않습니다.</div>
+    <button style="width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit" onclick="doLogin()">로그인</button>
+    <div class="login-hint">초기 비밀번호: 업체 1234 / 업무 5678 / 확인 9012</div>
+  </div>
+</div>
+
+<!-- 메인 앱 -->
+<div id="main-app" style="display:none">
+  <div class="hdr">
+    <div><h1>⚡ 전기설비 점검 시스템</h1><p id="hdr-role"></p></div>
+    <button class="hdr-logout" onclick="doLogout()">로그아웃</button>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" onclick="goTab('home')" id="tab-home"><span class="ti">🏠</span>홈</button>
+    <button class="tab" onclick="goTab('list')" id="tab-list"><span class="ti">📁</span>목록</button>
+    <button class="tab" onclick="goTab('record')" id="tab-record"><span class="ti">📋</span>기록</button>
+    <button class="tab" onclick="goTab('print')" id="tab-print"><span class="ti">🖨️</span>출력</button>
+    <button class="tab" onclick="goTab('settings')" id="tab-settings"><span class="ti">⚙️</span>설정</button>
+  </nav>
+
+  <!-- 홈 -->
+  <div class="page show" id="page-home">
+    <div id="home-banner"></div>
+    <div class="stat-grid">
+      <div class="stat-card" onclick="onStatClick('all')" style="cursor:pointer"><div class="stat-num blue" id="st-total">0</div><div class="stat-lbl">전체 기록</div></div>
+      <div class="stat-card" onclick="onStatClick('pending')" style="cursor:pointer;border:1.5px solid var(--amber-mid)"><div class="stat-num amber" id="st-pending">0</div><div class="stat-lbl">처리 대기 👆</div></div>
+      <div class="stat-card" onclick="onStatClick('approved')" style="cursor:pointer"><div class="stat-num green" id="st-approved">0</div><div class="stat-lbl">최종 승인</div></div>
+      <div class="stat-card" onclick="onStatClick('rejected')" style="cursor:pointer"><div class="stat-num red" id="st-rejected">0</div><div class="stat-lbl">반려</div></div>
+    </div>
+    <div id="home-pending-section" style="display:none">
+      <div class="card" style="border-color:var(--amber-mid)">
+        <div class="card-title" style="color:var(--amber)">
+          <div class="ico" style="background:var(--amber-light)">⏳</div>
+          <span id="home-pending-title">처리 대기 목록</span>
+          <button onclick="closePendingSection()" style="margin-left:auto;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-hint)">✕</button>
+        </div>
+        <div id="home-pending-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🔄</div> 결재 흐름</div>
+      <div class="flow">
+        <div class="flow-step" id="flow-0">✏️<br>업체담당자</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="flow-1">🔍<br>업무담당자 확인</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="flow-2">✅<br>확인자 승인</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="ico">📋</div> 최근 기록</div>
+      <div id="home-recent"></div>
+    </div>
+    <button class="fab" id="home-fab" onclick="goTab('record');startNewRecord()">✏️ 이번 주 점검 기록 작성</button>
+  </div>
+
+  <!-- 목록 -->
+  <div class="page" id="page-list">
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterList('all')" id="f-all">전체</button>
+      <button class="filter-btn" onclick="filterList('draft')" id="f-draft">작성중</button>
+      <button class="filter-btn" onclick="filterList('submitted')" id="f-submitted">제출됨</button>
+      <button class="filter-btn" onclick="filterList('reviewed')" id="f-reviewed">확인완료</button>
+      <button class="filter-btn" onclick="filterList('approved')" id="f-approved">승인완료</button>
+      <button class="filter-btn" onclick="filterList('rejected')" id="f-rejected">반려</button>
+    </div>
+    <div id="list-items"></div>
+  </div>
+
+  <!-- 기록 작성 -->
+  <div class="page" id="page-record">
+    <div id="record-view"></div>
+  </div>
+
+  <!-- 출력 -->
+  <div class="page" id="page-print">
+    <div id="print-banner"></div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🖨️</div> 점검결과표 출력</div>
+      <div class="fg">
+        <span class="fl">출력할 기록 선택</span>
+        <select class="fi" id="print-select" onchange="onPrintSelect()">
+          <option value="">— 기록을 선택하세요 —</option>
+        </select>
+      </div>
+      <div id="print-rec-info" style="display:none;background:var(--blue-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--blue-dark);line-height:1.9;margin-bottom:12px"></div>
+      <button class="btn-p" id="print-exec-btn" onclick="doPrint()" style="display:none">🖨️ A4 인쇄 / PDF 저장</button>
+    </div>
+    <div class="card" id="print-preview-card" style="display:none">
+      <div class="card-title"><div class="ico">👁️</div> 미리보기</div>
+      <div id="print-preview" style="font-size:11px;transform-origin:top left"></div>
+    </div>
+  </div>
+
+  <!-- 설정 -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-title"><div class="ico">🔗</div> Google Sheets 연동</div>
+      <div class="banner b-warn" id="sheets-status-banner">⚠️ Apps Script URL을 설정하면 여러 기기에서 데이터를 공유할 수 있습니다.</div>
+      <div class="fg"><span class="fl">Apps Script 웹 앱 URL</span>
+        <input class="fi" id="sheets-url" placeholder="https://script.google.com/..." style="font-size:11px">
+      </div>
+      <div class="btn-row">
+        <button class="btn-p" onclick="saveSheets()">💾 저장</button>
+        <button class="btn-s" onclick="loadFromSheets()">☁️ 지금 동기화</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🔒</div> 비밀번호 변경</div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">업체담당자</div><div class="setting-sub">현재 비밀번호로 로그인 가능</div></div>
+        <button class="setting-btn" onclick="openPwModal('agent')">변경</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">업무담당자</div><div class="setting-sub">현재 비밀번호로 로그인 가능</div></div>
+        <button class="setting-btn" onclick="openPwModal('manager')">변경</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">확인자</div><div class="setting-sub">현재 비밀번호로 로그인 가능</div></div>
+        <button class="setting-btn" onclick="openPwModal('confirmer')">변경</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🗑️</div> 데이터 관리</div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">로컬 데이터 초기화</div><div class="setting-sub">저장된 모든 점검 기록 삭제</div></div>
+        <button class="setting-btn" style="color:var(--red);border-color:var(--red-mid)" onclick="clearData()">초기화</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="modal-bg" id="pw-modal">
+  <div class="modal">
+    <h3>비밀번호 변경</h3>
+    <p id="pw-modal-desc"></p>
+    <input class="fi" type="password" id="pw-current" placeholder="현재 비밀번호">
+    <input class="fi" type="password" id="pw-new" placeholder="새 비밀번호">
+    <input class="fi" type="password" id="pw-confirm" placeholder="새 비밀번호 확인">
+    <div id="pw-err" style="font-size:11px;color:var(--red);margin-bottom:8px;display:none"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closePwModal()">취소</button>
+      <button class="modal-ok" onclick="savePw()">변경</button>
+    </div>
+  </div>
+</div>
+
+<!-- 상세보기 모달 -->
+<div class="detail-modal-bg" id="detail-modal">
+  <div class="detail-modal" id="detail-modal-inner">
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script>
+const LOW=['인입구 배선','배·분전반','배선용차단기','누전차단기','개·폐기','배선','전동기','전열설비','용접기','콘덴서','조명설비','구내전선로','기타설비','발전기','차단장치(발전)','축전장치(발전)'];
+const HIGH=['가공전선로','지중전선로','수배전용개폐기','배선(모선)','피뢰기','변성기','전력퓨즈','변압기','수배전반','계전기류','차단기류','전력콘덴서','보호설비','부하설비','접지시설','기타설비'];
+const RSTN=['R','S','T','N'];
+const ROLES={agent:'업체담당자',manager:'업무담당자',confirmer:'확인자'};
+const S_LABEL={draft:'작성중',submitted:'제출됨',reviewed:'확인완료',approved:'승인완료',rejected:'반려'};
+const S_BADGE={draft:'badge-draft',submitted:'badge-submitted',reviewed:'badge-reviewed',approved:'badge-approved',rejected:'badge-rejected'};
+
+let loginRole='agent',currentRole='agent';
+let loState=Array(16).fill('na'),hiState=Array(16).fill('na');
+let sigData='';
+let drawingActive=false,lp={x:0,y:0};
+let editingId=null,currentFilter='all';
+
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+const getPws=()=>load('elec_pws',{agent:'1234',manager:'5678',confirmer:'9012'});
+const getRecords=()=>load('elec_records',[]);
+const saveRecords=r=>save('elec_records',r);
+const vv=id=>{const e=document.getElementById(id);return e?e.value:'';};
+const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.value=val||'';};
+
+// ── 로그인 ──
+function selectRole(r){
+  currentRole=r;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('role-'+r).classList.add('selected');
+  document.getElementById('login-err').style.display='none';
+}
+function doLogin(){
+  const pw=document.getElementById('login-pw').value;
+  if(pw===getPws()[currentRole]){
+    loginRole=currentRole;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('main-app').style.display='block';
+    document.getElementById('hdr-role').textContent=ROLES[loginRole];
+    document.getElementById('login-pw').value='';
+    document.getElementById('tab-record').style.display=loginRole==='agent'?'flex':'none';
+    // 로그인 시 Sheets 자동 동기화
+    const sheetsUrl=load('elec_sheets_url','');
+    if(sheetsUrl)setTimeout(()=>loadFromSheets(),800);
+    document.getElementById('tab-print').style.display=(loginRole==='manager'||loginRole==='confirmer')?'flex':'none';
+    document.getElementById('tab-settings').style.display=(loginRole==='confirmer'||loginRole==='manager')?'flex':'none';
+    document.getElementById('home-fab').style.display=loginRole==='agent'?'flex':'none';
+    updateFlow();updateStats();renderHomeRecent();goTab('home');
+  } else {
+    document.getElementById('login-err').style.display='block';
+  }
+}
+function doLogout(){
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  loginRole='agent';selectRole('agent');
+}
+
+// ── 탭 ──
+function goTab(t){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('show'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+t).classList.add('show');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='list')renderList(currentFilter);
+  if(t==='home'){updateStats();renderHomeRecent();}
+  if(t==='record'&&!editingId)startNewRecord();
+  if(t==='print')initPrintTab();
+  window.scrollTo(0,0);
+}
+
+// ── 통계 ──
+function updateStats(){
+  const r=getRecords();
+  document.getElementById('st-total').textContent=r.length;
+  document.getElementById('st-pending').textContent=r.filter(x=>x.status==='submitted'||x.status==='reviewed').length;
+  document.getElementById('st-approved').textContent=r.filter(x=>x.status==='approved').length;
+  document.getElementById('st-rejected').textContent=r.filter(x=>x.status==='rejected').length;
+}
+function updateFlow(){
+  ['flow-0','flow-1','flow-2'].forEach(id=>document.getElementById(id).className='flow-step');
+  const map={agent:'flow-0',manager:'flow-1',confirmer:'flow-2'};
+  document.getElementById(map[loginRole]).classList.add('active');
+}
+
+// ── 홈 최근 ──
+function renderHomeRecent(){
+  const recs=getRecords().slice(-3).reverse();
+  const el=document.getElementById('home-recent');
+  if(!recs.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:12px">기록 없음</div>';return;}
+  el.innerHTML=recs.map(r=>`<div class="rec-card" onclick="openDetail('${r.id}')">
+    <div class="rec-top"><div class="rec-name">${r.name||'(이름없음)'}</div><span class="badge ${S_BADGE[r.status]}">${S_LABEL[r.status]}</span></div>
+    <div class="rec-date">${r.date||''} | ${r.type||'—'} | ${r.cnt||1}회</div>
+  </div>`).join('');
+}
+
+// ── 목록 ──
+function filterList(f){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('f-'+f).classList.add('active');
+  renderList(f);
+}
+function renderList(f){
+  let recs=getRecords().reverse();
+  if(f!=='all')recs=recs.filter(r=>r.status===f);
+  const el=document.getElementById('list-items');
+  if(!recs.length){el.innerHTML='<div class="empty"><span>📁</span>점검 기록이 없습니다</div>';return;}
+  el.innerHTML=recs.map(r=>`<div class="rec-card" onclick="openDetail('${r.id}')">
+    <div class="rec-top"><div class="rec-name">${r.name||'(이름없음)'}</div><span class="badge ${S_BADGE[r.status]}">${S_LABEL[r.status]}</span></div>
+    <div class="rec-date">${r.date||''} | ${r.type||'—'} | ${r.cnt||1}회 | ${r.agentName||''}</div>
+  </div>`).join('');
+}
+
+// ── 기록 작성 ──
+function startNewRecord(){
+  editingId=null;
+  loState=Array(16).fill('na');hiState=Array(16).fill('na');sigData='';
+  renderForm(null);
+}
+function renderForm(rec){
+  document.getElementById('record-view').innerHTML=`
+    <div id="rf-banner"></div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🏢</div> 기본사항</div>
+      <div class="fg"><span class="fl">설비명 (상호)</span><input class="fi" id="rf_name" placeholder="상호명"></div>
+      <div class="grid2">
+        <div class="fg"><span class="fl">점검일자</span><input class="fi" type="date" id="rf_date"></div>
+        <div class="fg"><span class="fl">점검종별</span>
+          <select class="fi" id="rf_type"><option value="">선택</option><option>정기점검</option><option>임시점검</option><option>정밀점검</option></select>
+        </div>
+      </div>
+      <div class="fg"><span class="fl">점검횟수</span>
+        <div class="cnt-row">
+          <button class="cnt-btn" onclick="adjCnt(-1)">−</button>
+          <input class="cnt-inp" type="number" id="rf_cnt" value="1" min="1" max="99">
+          <button class="cnt-btn" onclick="adjCnt(1)">+</button>
+          <span style="font-size:11px;color:var(--text-hint)">회</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div class="fg"><span class="fl">수전전압(V)</span><input class="fi" id="rf_rv"></div>
+        <div class="fg"><span class="fl">수전용량(kW)</span><input class="fi" id="rf_rk"></div>
+        <div class="fg"><span class="fl">발전전압(V)</span><input class="fi" id="rf_gv"></div>
+        <div class="fg"><span class="fl">발전용량(kW)</span><input class="fi" id="rf_gk"></div>
+        <div class="fg"><span class="fl">태양광(kW)</span><input class="fi" id="rf_sl"></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title"><div class="ico">🔌</div> 저압설비 점검</div><div id="lo-items"></div></div>
+    <div class="card"><div class="card-title"><div class="ico">⚡</div> 특고(고압)설비 점검</div><div id="hi-items"></div></div>
+    <div class="card">
+      <div class="card-title"><div class="ico">📊</div> 전기 측정값</div>
+      <div class="meas-hdr blue">📍 측정개소 1 <input class="mpos-inp" id="mpos_0" placeholder="개소명"></div>
+      <table class="meas-tbl"><thead><tr><th style="width:32px">구분</th><th>전압(V)</th><th>전류(A)</th><th>누설전류(㎃)</th></tr></thead>
+      <tbody>${RSTN.map(p=>`<tr><td class="ph">${p}</td><td><input class="meas-inp" id="mv_0_${p}" type="number"></td><td><input class="meas-inp" id="ma_0_${p}" type="number"></td><td><input class="meas-inp" id="mm_0_${p}" type="number"></td></tr>`).join('')}</tbody></table>
+      <div class="divider"></div>
+      <div class="meas-hdr blue">📍 측정개소 2 <input class="mpos-inp" id="mpos_1" placeholder="개소명"></div>
+      <table class="meas-tbl"><thead><tr><th style="width:32px">구분</th><th>전압(V)</th><th>전류(A)</th><th>누설전류(㎃)</th></tr></thead>
+      <tbody>${RSTN.map(p=>`<tr><td class="ph">${p}</td><td><input class="meas-inp" id="mv_1_${p}" type="number"></td><td><input class="meas-inp" id="ma_1_${p}" type="number"></td><td><input class="meas-inp" id="mm_1_${p}" type="number"></td></tr>`).join('')}</tbody></table>
+      <div class="divider"></div>
+      <div class="meas-hdr amber">⚙️ 발전설비 <input class="mpos-inp" style="border-color:var(--amber-mid)" id="mpos_2" placeholder="설비명"></div>
+      <div class="gen-grid">
+        <div class="gg-hdr">No</div><div class="gg-hdr">전압(V)</div><div class="gg-hdr">전류(A)</div><div class="gg-hdr">발전량(kWh)</div>
+        ${[0,1,2,3].map(i=>`<div class="gg-lbl">${i+1}</div><div class="gg-cell"><input class="gg-inp" id="gv_${i}" type="number"></div><div class="gg-cell"><input class="gg-inp" id="ga_${i}" type="number"></div><div class="gg-cell"><input class="gg-inp" id="gkwh_${i}" type="number"></div>`).join('')}
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:10px">역률 / 전력</div>
+      <div class="power-grid">
+        <div class="power-card"><div class="power-lbl">역률(%) 주간</div><input class="power-inp" id="pf_day" type="number"></div>
+        <div class="power-card"><div class="power-lbl">역률(%) 심야</div><input class="power-inp" id="pf_night" type="number"></div>
+        <div class="power-card"><div class="power-lbl">유효전력(kW)</div><input class="power-inp" id="pw_kw" type="number"></div>
+        <div class="power-card"><div class="power-lbl">무효전력(kVar)</div><input class="power-inp" id="pw_kvar" type="number"></div>
+        <div class="power-card"><div class="power-lbl">최대전력(kW)</div><input class="power-inp" id="pw_mkw" type="number"></div>
+        <div class="power-card"><div class="power-lbl">배율</div><input class="power-inp" id="pw_ratio" type="number"></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title"><div class="ico">📝</div> 종합의견</div>
+      <!-- 모드 스위처 -->
+      <div class="op-mode-row">
+        <button class="op-mode-btn active" id="op-mode-keyboard" onclick="setOpMode('keyboard')">⌨️ 키보드 입력</button>
+        <button class="op-mode-btn" id="op-mode-pen" onclick="setOpMode('pen')">🖊️ 펜으로 작성</button>
+      </div>
+      <!-- 키보드 입력 -->
+      <div id="op-keyboard-area">
+        <textarea class="opinion-ta" id="rf_op" placeholder="점검내역, 부적합 개보수 의견 등을 기록하세요."></textarea>
+      </div>
+      <!-- 펜 입력 -->
+      <div id="op-pen-area" style="display:none">
+        <div class="op-canvas-tools">
+          <button class="op-tool-btn active" id="op-tool-pen" onclick="setOpTool('pen')">🖊️ 펜</button>
+          <button class="op-tool-btn" id="op-tool-eraser" onclick="setOpTool('eraser')">🧹 지우개</button>
+          <div class="op-pen-size"><span>굵기</span><input type="range" id="op-pen-size" min="1" max="10" value="2" oninput="updatePenSize()"></div>
+          <button class="op-tool-btn" onclick="clearOpCanvas()" style="margin-left:auto;color:var(--red)">전체 지우기</button>
+        </div>
+        <div class="op-canvas-wrap" id="op-canvas-wrap">
+          <canvas id="op-canvas" style="width:100%;height:180px"></canvas>
+        </div>
+        <div style="font-size:10px;color:var(--text-hint);margin-top:5px;text-align:center">손가락 또는 스타일러스로 자유롭게 작성하세요</div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title"><div class="ico">✍️</div> 서명</div>
+      <div class="fg"><span class="fl">담당자명</span><input class="fi" id="rf_agent" placeholder="성명"></div>
+      <div class="fg"><span class="fl">소속 업체</span><input class="fi" id="rf_org" placeholder="업체명"></div>
+      <div class="fg" style="margin-top:6px"><span class="fl">서명란</span>
+        <div class="sig-wrap" id="sig0"><canvas id="sig0_c"></canvas><div class="sig-ph" id="sig0_ph">✍️ 여기에 서명하세요</div><button class="sig-clr" onclick="clearSig()">지우기</button></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-s" onclick="saveDraft()">💾 임시저장</button>
+      <button class="btn-p" onclick="submitRecord()">📤 업무담당자에게 제출</button>
+    </div>
+    <div style="height:20px"></div>`;
+
+  buildItems(LOW,'lo','lo-items');
+  buildItems(HIGH,'hi','hi-items');
+  document.getElementById('rf_date').valueAsDate=new Date();
+  setTimeout(()=>{initSig();initOpCanvas();},200);
+
+  if(rec){
+    sv('rf_name',rec.name);sv('rf_date',rec.date);sv('rf_type',rec.type);
+    sv('rf_cnt',rec.cnt);sv('rf_rv',rec.rv);sv('rf_rk',rec.rk);
+    sv('rf_gv',rec.gv);sv('rf_gk',rec.gk);sv('rf_sl',rec.sl);sv('rf_op',rec.op);
+    sv('rf_agent',rec.agentName);sv('rf_org',rec.agentOrg);
+    if(rec.loState){loState=[...rec.loState];loState.forEach((s,i)=>setRState('lo',i,s));}
+    if(rec.hiState){hiState=[...rec.hiState];hiState.forEach((s,i)=>setRState('hi',i,s));}
+    if(rec.meas){
+      const m=rec.meas;
+      sv('mpos_0',m.pos_0);sv('mpos_1',m.pos_1);sv('mpos_2',m.gen_pos);
+      RSTN.forEach(p=>{sv(`mv_0_${p}`,m[`v_0_${p}`]);sv(`ma_0_${p}`,m[`a_0_${p}`]);sv(`mm_0_${p}`,m[`mm_0_${p}`]);
+        sv(`mv_1_${p}`,m[`v_1_${p}`]);sv(`ma_1_${p}`,m[`a_1_${p}`]);sv(`mm_1_${p}`,m[`mm_1_${p}`]);});
+      [0,1,2,3].forEach(i=>{sv(`gv_${i}`,m[`gv_${i}`]);sv(`ga_${i}`,m[`ga_${i}`]);sv(`gkwh_${i}`,m[`gkwh_${i}`]);});
+      sv('pf_day',m.pf_day);sv('pf_night',m.pf_night);sv('pw_kw',m.kw);sv('pw_kvar',m.kvar);sv('pw_mkw',m.mkw);sv('pw_ratio',m.ratio);
+    }
+    if(rec.sig0){sigData=rec.sig0;setTimeout(()=>restoreSig(rec.sig0),300);}
+  }
+}
+
+function buildItems(arr,prefix,cid){
+  document.getElementById(cid).innerHTML=arr.map((name,i)=>`
+    <div class="item-row">
+      <div class="item-top">
+        <div class="item-name">${name}</div>
+        <div class="chk-group">
+          <label class="chk-label"><input type="radio" name="${prefix}_${i}" value="ok" onchange="setR('${prefix}',${i},'ok')"><div class="chk-pill ok"><div class="dot"></div>적합</div></label>
+          <label class="chk-label"><input type="radio" name="${prefix}_${i}" value="ng" onchange="setR('${prefix}',${i},'ng')"><div class="chk-pill ng"><div class="dot"></div>부적합</div></label>
+          <label class="chk-label"><input type="radio" name="${prefix}_${i}" value="na" onchange="setR('${prefix}',${i},'na')" checked><div class="chk-pill na"><div class="dot"></div>해당없음</div></label>
+        </div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-group"><span class="detail-lbl">증</span><input class="si" id="${prefix}_jong_${i}"></div>
+        <div class="detail-group"><span class="detail-lbl">감</span><input class="si" id="${prefix}_gan_${i}"></div>
+        <div class="detail-group"><span class="detail-lbl">부적합</span><input class="si" id="${prefix}_fa_${i}"></div>
+        <div class="detail-group"><span class="detail-lbl">개수</span><input class="si" id="${prefix}_fb_${i}"></div>
+      </div>
+    </div>`).join('');
+}
+
+function setR(prefix,idx,val){
+  if(prefix==='lo')loState[idx]=val; else hiState[idx]=val;
+}
+function setRState(prefix,idx,val){
+  const inp=document.querySelector(`input[name="${prefix}_${idx}"][value="${val}"]`);
+  if(inp)inp.checked=true;
+  if(prefix==='lo')loState[idx]=val; else hiState[idx]=val;
+}
+function adjCnt(d){const e=document.getElementById('rf_cnt');if(e)e.value=Math.max(1,Math.min(99,(parseInt(e.value)||1)+d));}
+
+function collectForm(status){
+  const meas={pos_0:vv('mpos_0'),pos_1:vv('mpos_1'),gen_pos:vv('mpos_2')};
+  RSTN.forEach(p=>{meas[`v_0_${p}`]=vv(`mv_0_${p}`);meas[`a_0_${p}`]=vv(`ma_0_${p}`);meas[`mm_0_${p}`]=vv(`mm_0_${p}`);
+    meas[`v_1_${p}`]=vv(`mv_1_${p}`);meas[`a_1_${p}`]=vv(`ma_1_${p}`);meas[`mm_1_${p}`]=vv(`mm_1_${p}`);});
+  [0,1,2,3].forEach(i=>{meas[`gv_${i}`]=vv(`gv_${i}`);meas[`ga_${i}`]=vv(`ga_${i}`);meas[`gkwh_${i}`]=vv(`gkwh_${i}`);});
+  meas.pf_day=vv('pf_day');meas.pf_night=vv('pf_night');meas.kw=vv('pw_kw');meas.kvar=vv('pw_kvar');meas.mkw=vv('pw_mkw');meas.ratio=vv('pw_ratio');
+  return {
+    id:editingId||('rec_'+Date.now()),status,
+    name:vv('rf_name'),date:vv('rf_date'),type:vv('rf_type'),cnt:vv('rf_cnt'),
+    rv:vv('rf_rv'),rk:vv('rf_rk'),gv:vv('rf_gv'),gk:vv('rf_gk'),sl:vv('rf_sl'),
+    loState:[...loState],hiState:[...hiState],meas,
+    op:collectOpinion(),agentName:vv('rf_agent'),agentOrg:vv('rf_org'),sig0:sigData,opMode:currentOpMode,
+    updatedAt:new Date().toISOString()
+  };
+}
+
+function upsertRecord(rec){
+  let recs=getRecords();
+  const idx=recs.findIndex(r=>r.id===rec.id);
+  if(idx>=0)recs[idx]=rec; else recs.push(rec);
+  saveRecords(recs);syncSheets(rec);
+}
+
+function saveDraft(){
+  if(loginRole!=='agent'){alert('업체담당자만 기록을 작성할 수 있습니다.');return;}
+  if(!vv('rf_name')){alert('설비명을 입력하세요.');return;}
+  const rec=collectForm('draft');
+  editingId=rec.id;upsertRecord(rec);
+  showBanner('rf-banner','b-success','💾 임시저장 완료!');updateStats();
+}
+function submitRecord(){
+  if(loginRole!=='agent'){alert('업체담당자만 제출할 수 있습니다.');return;}
+  if(!vv('rf_name')){alert('설비명을 입력하세요.');return;}
+  if(!vv('rf_date')){alert('점검일자를 선택하세요.');return;}
+  if(!sigData){alert('서명을 해주세요.');return;}
+  const rec=collectForm('submitted');
+  upsertRecord(rec);
+  showBanner('rf-banner','b-success','✅ 업무담당자에게 제출되었습니다!');
+  editingId=null;
+  setTimeout(()=>{updateStats();startNewRecord();},1500);
+}
+
+// ── 종합의견 ──
+let currentOpMode='keyboard';
+let opTool='pen';
+let opDrawing=false;
+let opLp={x:0,y:0};
+let opImageData=null;
+
+function setOpMode(mode){
+  currentOpMode=mode;
+  document.getElementById('op-mode-keyboard').classList.toggle('active',mode==='keyboard');
+  document.getElementById('op-mode-pen').classList.toggle('active',mode==='pen');
+  document.getElementById('op-keyboard-area').style.display=mode==='keyboard'?'block':'none';
+  document.getElementById('op-pen-area').style.display=mode==='pen'?'block':'none';
+  if(mode==='pen')setTimeout(initOpCanvas,100);
+}
+
+function setOpTool(tool){
+  opTool=tool;
+  document.getElementById('op-tool-pen').classList.toggle('active',tool==='pen');
+  document.getElementById('op-tool-eraser').classList.toggle('active',tool==='eraser');
+}
+
+function updatePenSize(){}
+
+function initOpCanvas(){
+  const canvas=document.getElementById('op-canvas');
+  if(!canvas)return;
+  const wrap=document.getElementById('op-canvas-wrap');
+  const W=wrap.offsetWidth||340;
+  if(canvas.width!==W){
+    canvas.width=W;
+    canvas.height=180;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#f8faff';
+    ctx.fillRect(0,0,W,180);
+    // 가로 줄 그리기
+    ctx.strokeStyle='#dce3ef';ctx.lineWidth=0.5;
+    for(let y=30;y<180;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    if(opImageData&&opImageData.width===W){
+      canvas.getContext('2d').putImageData(opImageData,0,0);
+    }
+  }
+  setupOpEvents(canvas);
+}
+
+function setupOpEvents(canvas){
+  if(canvas._opReady)return;
+  canvas._opReady=true;
+  const getP=e=>{
+    const r=canvas.getBoundingClientRect();
+    const s=e.touches?e.touches[0]:e;
+    return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};
+  };
+  const dn=e=>{
+    e.preventDefault();opDrawing=true;opLp=getP(e);
+    const ctx=canvas.getContext('2d');
+    const sz=parseInt(document.getElementById('op-pen-size')?.value||2);
+    if(opTool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.lineWidth=sz*4;}
+    else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle='#1a1a2e';ctx.lineWidth=sz;}
+    ctx.lineCap='round';ctx.lineJoin='round';
+  };
+  const mv=e=>{
+    e.preventDefault();if(!opDrawing)return;
+    const ctx=canvas.getContext('2d');
+    const p=getP(e);
+    ctx.beginPath();ctx.moveTo(opLp.x,opLp.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+    opLp=p;
+  };
+  const up=e=>{
+    opDrawing=false;
+    const ctx=canvas.getContext('2d');
+    ctx.globalCompositeOperation='source-over';
+    opImageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+  };
+  canvas.addEventListener('mousedown',dn);canvas.addEventListener('mousemove',mv);canvas.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',dn,{passive:false});canvas.addEventListener('touchmove',mv,{passive:false});canvas.addEventListener('touchend',up);
+}
+
+function clearOpCanvas(){
+  const canvas=document.getElementById('op-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#f8faff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#dce3ef';ctx.lineWidth=0.5;
+  for(let y=30;y<180;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  opImageData=null;
+}
+
+function collectOpinion(){
+  if(currentOpMode==='keyboard') return vv('rf_op');
+  const canvas=document.getElementById('op-canvas');
+  return canvas?canvas.toDataURL():'';
+}
+
+// ── 서명 ──
+function initSig(){
+  const canvas=document.getElementById('sig0_c');if(!canvas)return;
+  const cont=document.getElementById('sig0');
+  canvas.width=cont.offsetWidth||340;canvas.height=90;
+  const ctx=canvas.getContext('2d');
+  ctx.strokeStyle='#185FA5';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+  const gp=e=>{const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};};
+  const dn=e=>{e.preventDefault();drawingActive=true;lp=gp(e);document.getElementById('sig0_ph').style.display='none';};
+  const mv=e=>{e.preventDefault();if(!drawingActive)return;const p=gp(e);ctx.beginPath();ctx.moveTo(lp.x,lp.y);ctx.lineTo(p.x,p.y);ctx.stroke();lp=p;};
+  const up=()=>{if(drawingActive){drawingActive=false;sigData=canvas.toDataURL();}};
+  canvas.addEventListener('mousedown',dn);canvas.addEventListener('mousemove',mv);canvas.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',dn,{passive:false});canvas.addEventListener('touchmove',mv,{passive:false});canvas.addEventListener('touchend',up);
+}
+function clearSig(){
+  const c=document.getElementById('sig0_c');if(!c)return;
+  c.getContext('2d').clearRect(0,0,c.width,c.height);
+  sigData='';document.getElementById('sig0_ph').style.display='';
+}
+function restoreSig(dataUrl){
+  const canvas=document.getElementById('sig0_c');if(!canvas||!dataUrl)return;
+  const img=new Image();
+  img.onload=()=>canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  img.src=dataUrl;
+  const ph=document.getElementById('sig0_ph');if(ph)ph.style.display='none';
+}
+
+// ── 홈 통계 클릭 ──
+let reviewSigData='';
+let reviewDrawing=false;
+let reviewLp={x:0,y:0};
+
+function onStatClick(type){
+  const sec=document.getElementById('home-pending-section');
+  const titleEl=document.getElementById('home-pending-title');
+  const listEl=document.getElementById('home-pending-list');
+  let recs=getRecords();
+  let filtered=[];
+  let title='';
+
+  if(type==='pending'){
+    if(loginRole==='manager') filtered=recs.filter(r=>r.status==='submitted');
+    else if(loginRole==='confirmer') filtered=recs.filter(r=>r.status==='reviewed');
+    else filtered=recs.filter(r=>r.status==='submitted'||r.status==='reviewed');
+    title='처리 대기 목록 ('+filtered.length+'건)';
+  } else if(type==='approved'){
+    filtered=recs.filter(r=>r.status==='approved');
+    title='최종 승인 목록 ('+filtered.length+'건)';
+  } else if(type==='rejected'){
+    filtered=recs.filter(r=>r.status==='rejected');
+    title='반려 목록 ('+filtered.length+'건)';
+  } else {
+    filtered=recs;
+    title='전체 목록 ('+filtered.length+'건)';
+  }
+
+  filtered=filtered.slice().reverse();
+  titleEl.textContent=title;
+
+  if(!filtered.length){
+    listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:12px">해당 기록이 없습니다</div>';
+  } else {
+    listEl.innerHTML=filtered.map(r=>`<div class="rec-card" onclick="openDetail('${r.id}')">
+      <div class="rec-top"><div class="rec-name">${r.name||'(이름없음)'}</div><span class="badge ${S_BADGE[r.status]}">${S_LABEL[r.status]}</span></div>
+      <div class="rec-date">📅 ${r.date||'날짜없음'} | ${r.type||'—'} | ${r.cnt||1}회 | ${r.agentName||''}</div>
+    </div>`).join('');
+  }
+
+  sec.style.display='block';
+  sec.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closePendingSection(){
+  document.getElementById('home-pending-section').style.display='none';
+}
+
+// ── 상세보기 ──
+function buildDetailInspItems(arr,stateArr,prefix){
+  const rLabel=r=>r==='ok'?'<span style="color:var(--green);font-weight:600">✅ 적합</span>':r==='ng'?'<span style="color:var(--red);font-weight:600">❌ 부적합</span>':'<span style="color:var(--text-hint)">— 해당없음</span>';
+  return arr.map((name,i)=>{
+    const s=stateArr?stateArr[i]:'na';
+    if(s==='na') return '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-light);font-size:12px">
+      <span>${name}</span>${rLabel(s)}</div>`;
+  }).filter(Boolean).join('');
+}
+
+function openDetail(id){
+  const rec=getRecords().find(r=>r.id===id);if(!rec)return;
+  const canReview=loginRole==='manager'&&rec.status==='submitted';
+  const canApprove=loginRole==='confirmer'&&rec.status==='reviewed';
+  const canEdit=loginRole==='agent'&&(rec.status==='draft'||rec.status==='rejected');
+
+  // 역할별 접근 제한 안내
+  const roleBlock=(loginRole==='agent'&&rec.status==='submitted')?
+    `<div class="banner b-info" style="margin-bottom:10px">📋 업무담당자 검토 대기중입니다.</div>`:'';
+  const roleBlock2=(loginRole==='agent'&&rec.status==='reviewed')?
+    `<div class="banner b-info" style="margin-bottom:10px">✅ 업무담당자 확인 완료. 확인자 최종 승인 대기중입니다.</div>`:'';
+  const roleBlock3=(loginRole==='manager'&&rec.status==='reviewed')?
+    `<div class="banner b-success" style="margin-bottom:10px">✅ 내가 확인 완료한 기록입니다. 확인자 승인 대기중입니다.</div>`:'';
+  const roleBlock4=(loginRole==='manager'&&rec.status==='draft')?
+    `<div class="banner b-warn" style="margin-bottom:10px">⏳ 아직 업체담당자가 제출하지 않은 기록입니다.</div>`:'';
+  reviewSigData='';
+
+  const loItems=buildDetailInspItems(LOW,rec.loState,'lo');
+  const hiItems=buildDetailInspItems(HIGH,rec.hiState,'hi');
+
+  const measHtml=(rec.meas)?`
+    <div style="font-size:12px;font-weight:600;color:var(--blue-dark);margin:10px 0 6px">📍 측정개소 1 ${rec.meas.pos_0?'('+rec.meas.pos_0+')':''}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+      <tr style="background:var(--gray-light)"><th style="border:1px solid var(--border);padding:4px">구분</th><th style="border:1px solid var(--border);padding:4px">전압(V)</th><th style="border:1px solid var(--border);padding:4px">전류(A)</th><th style="border:1px solid var(--border);padding:4px">누설전류(㎃)</th></tr>
+      ${['R','S','T','N'].map(p=>`<tr><td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:600;color:var(--blue)">${p}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['v_0_'+p]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['a_0_'+p]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['mm_0_'+p]||'—'}</td></tr>`).join('')}
+    </table>
+    <div style="font-size:12px;font-weight:600;color:var(--blue-dark);margin:10px 0 6px">📍 측정개소 2 ${rec.meas.pos_1?'('+rec.meas.pos_1+')':''}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+      <tr style="background:var(--gray-light)"><th style="border:1px solid var(--border);padding:4px">구분</th><th style="border:1px solid var(--border);padding:4px">전압(V)</th><th style="border:1px solid var(--border);padding:4px">전류(A)</th><th style="border:1px solid var(--border);padding:4px">누설전류(㎃)</th></tr>
+      ${['R','S','T','N'].map(p=>`<tr><td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:600;color:var(--blue)">${p}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['v_1_'+p]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['a_1_'+p]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['mm_1_'+p]||'—'}</td></tr>`).join('')}
+    </table>
+    <div style="font-size:12px;font-weight:600;color:var(--amber);margin:10px 0 6px">⚙️ 발전설비 ${rec.meas.gen_pos?'('+rec.meas.gen_pos+')':''}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+      <tr style="background:var(--gray-light)"><th style="border:1px solid var(--border);padding:4px">No</th><th style="border:1px solid var(--border);padding:4px">전압(V)</th><th style="border:1px solid var(--border);padding:4px">전류(A)</th><th style="border:1px solid var(--border);padding:4px">발전량(kWh)</th></tr>
+      ${[0,1,2,3].map(i=>`<tr><td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:700;color:var(--amber)">${i+1}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['gv_'+i]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['ga_'+i]||'—'}</td><td style="border:1px solid var(--border);padding:4px;text-align:center">${rec.meas['gkwh_'+i]||'—'}</td></tr>`).join('')}
+    </table>` : '';
+
+  let actionHtml='';
+  if(canReview){
+    actionHtml=`<div class="review-panel manager">
+      <h4>🔍 업무담당자 검토 및 서명</h4>
+      <div class="fg"><span class="fl">검토의견</span><textarea class="opinion-ta" id="det-op" placeholder="검토 의견을 입력하세요..."></textarea></div>
+      <div class="fg"><span class="fl">서명란 (터치/마우스로 서명)</span>
+        <div class="sig-wrap" id="rev-sig-wrap"><canvas id="rev-sig-c"></canvas><div class="sig-ph" id="rev-sig-ph">✍️ 여기에 서명하세요</div><button class="sig-clr" onclick="clearRevSig()">지우기</button></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-danger" onclick="rejectRec('${id}')">❌ 반려</button>
+        <button class="btn-p" onclick="reviewRec('${id}')">✅ 확인 완료</button>
+      </div>
+    </div>`;
+  }
+  if(canApprove){
+    actionHtml=`<div class="review-panel confirmer">
+      <h4>✅ 확인자 최종 승인 및 서명</h4>
+      <div class="fg"><span class="fl">승인의견</span><textarea class="opinion-ta" id="det-op" placeholder="승인 의견을 입력하세요..."></textarea></div>
+      <div class="fg"><span class="fl">서명란 (터치/마우스로 서명)</span>
+        <div class="sig-wrap" id="rev-sig-wrap"><canvas id="rev-sig-c"></canvas><div class="sig-ph" id="rev-sig-ph">✍️ 여기에 서명하세요</div><button class="sig-clr" onclick="clearRevSig()">지우기</button></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-danger" onclick="rejectRec('${id}')">❌ 반려</button>
+        <button class="btn-g" onclick="approveRec('${id}')">🏁 최종 승인</button>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('detail-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;position:sticky;top:0;background:#fff;padding-bottom:10px;border-bottom:1px solid var(--border);z-index:10">
+      <div>
+        <div style="font-size:15px;font-weight:600">${rec.name||'점검 기록'}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:2px">📅 ${rec.date||'—'} | ${rec.type||'—'} | ${rec.cnt||1}회</div>
+      </div>
+      <button onclick="closeDetail()" style="background:var(--gray-light);border:1px solid var(--border);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;flex-shrink:0">닫기</button>
+    </div>
+    <span class="badge ${S_BADGE[rec.status]}" style="display:inline-block;margin-bottom:12px">${S_LABEL[rec.status]}</span>
+    ${roleBlock}${roleBlock2}${roleBlock3}${roleBlock4}
+    ${actionHtml}
+
+    <div style="background:var(--blue-light);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:2;color:var(--blue-dark)">
+      <b>기본사항</b><br>
+      수전: ${rec.rv||'—'}V / ${rec.rk||'—'}kW &nbsp;|&nbsp; 발전: ${rec.gv||'—'}V / ${rec.gk||'—'}kW${rec.sl?' | 태양광: '+rec.sl+'kW':''}<br>
+      업체담당자: ${rec.agentName||'—'} (${rec.agentOrg||'—'})
+    </div>
+
+    ${loItems?`<div style="font-size:12px;font-weight:600;color:var(--blue-dark);margin-bottom:6px">🔌 저압설비 점검결과</div>${loItems}`:''}
+    ${hiItems?`<div style="font-size:12px;font-weight:600;color:var(--blue-dark);margin:10px 0 6px">⚡ 특고(고압)설비 점검결과</div>${hiItems}`:''}
+
+    ${measHtml}
+
+    ${rec.op?`<div style="background:var(--gray-light);border-radius:var(--radius-sm);padding:10px 12px;margin:10px 0;font-size:12px"><b>종합의견</b><div style="margin-top:4px">${rec.opMode==='pen'?`<img src="${rec.op}" style="max-width:100%;height:auto;border-radius:4px">`:`<span style="color:var(--text-sub);line-height:1.7">${rec.op}</span>`}</div></div>`:''}
+
+    ${rec.sig0?`<div style="margin:10px 0"><div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:4px">업체담당자 서명</div><img src="${rec.sig0}" style="height:60px;border:1px solid var(--border);border-radius:6px"></div>`:''}
+    ${rec.reviewOp?`<div style="font-size:12px;margin:8px 0;padding:8px 12px;background:var(--amber-light);border-radius:6px"><b>검토의견:</b> ${rec.reviewOp}</div>`:''}
+    ${rec.sig1?`<div style="margin:6px 0"><div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:4px">업무담당자 서명</div><img src="${rec.sig1}" style="height:60px;border:1px solid var(--border);border-radius:6px"></div>`:''}
+    ${rec.approveOp?`<div style="font-size:12px;margin:8px 0;padding:8px 12px;background:var(--green-light);border-radius:6px"><b>승인의견:</b> ${rec.approveOp}</div>`:''}
+    ${rec.sig2?`<div style="margin:6px 0"><div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:4px">확인자 서명</div><img src="${rec.sig2}" style="height:60px;border:1px solid var(--border);border-radius:6px"></div>`:''}
+    ${rec.rejectReason?`<div style="font-size:12px;margin:8px 0;padding:8px 12px;background:var(--red-light);border-radius:6px;color:var(--red)"><b>반려사유:</b> ${rec.rejectReason}</div>`:''}
+    ${canEdit?`<div class="btn-row" style="margin-top:12px"><button class="btn-p" onclick="editRec('${id}')">✏️ 수정하기</button></div>`:''}
+    <div style="height:16px"></div>`;
+
+  document.getElementById('detail-modal').classList.add('show');
+
+  // 서명 초기화
+  if(canReview||canApprove){
+    setTimeout(()=>initRevSig(),200);
+  }
+}
+
+function initRevSig(){
+  const canvas=document.getElementById('rev-sig-c');if(!canvas)return;
+  const cont=document.getElementById('rev-sig-wrap');
+  canvas.width=cont.offsetWidth||340;canvas.height=90;
+  const ctx=canvas.getContext('2d');
+  ctx.strokeStyle='#185FA5';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+  const gp=e=>{const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};};
+  const dn=e=>{e.preventDefault();reviewDrawing=true;reviewLp=gp(e);document.getElementById('rev-sig-ph').style.display='none';};
+  const mv=e=>{e.preventDefault();if(!reviewDrawing)return;const p=gp(e);ctx.beginPath();ctx.moveTo(reviewLp.x,reviewLp.y);ctx.lineTo(p.x,p.y);ctx.stroke();reviewLp=p;};
+  const up=()=>{if(reviewDrawing){reviewDrawing=false;reviewSigData=canvas.toDataURL();}};
+  canvas.addEventListener('mousedown',dn);canvas.addEventListener('mousemove',mv);canvas.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',dn,{passive:false});canvas.addEventListener('touchmove',mv,{passive:false});canvas.addEventListener('touchend',up);
+}
+function clearRevSig(){
+  const c=document.getElementById('rev-sig-c');if(!c)return;
+  c.getContext('2d').clearRect(0,0,c.width,c.height);
+  reviewSigData='';document.getElementById('rev-sig-ph').style.display='';
+}
+
+function closeDetail(){document.getElementById('detail-modal').classList.remove('show');}
+
+function editRec(id){
+  if(loginRole!=='agent'){alert('업체담당자만 기록을 수정할 수 있습니다.');return;}
+  const rec=getRecords().find(r=>r.id===id);
+  if(rec&&rec.status!=='draft'&&rec.status!=='rejected'){alert('작성중 또는 반려된 기록만 수정할 수 있습니다.');return;}
+  closeDetail();editingId=id;
+  if(rec){loState=[...(rec.loState||Array(16).fill('na'))];hiState=[...(rec.hiState||Array(16).fill('na'))];}
+  goTab('record');renderForm(rec);
+}
+function reviewRec(id){
+  if(loginRole!=='manager'){alert('업무담당자만 확인 완료할 수 있습니다.');return;}
+  const rec=getRecords().find(r=>r.id===id);
+  if(!rec||rec.status!=='submitted'){alert('처리할 수 없는 상태입니다.');return;}
+  if(!reviewSigData){alert('서명을 해주세요.');return;}
+  const op=document.getElementById('det-op')?.value||'';
+  updateStatus(id,'reviewed',{reviewOp:op,sig1:reviewSigData,mgrName:document.getElementById('hdr-role').textContent});
+  closeDetail();showBanner('home-banner','b-success','✅ 확인 완료 처리되었습니다.');
+  closePendingSection();updateStats();renderHomeRecent();
+}
+function approveRec(id){
+  if(loginRole!=='confirmer'){alert('확인자만 최종 승인할 수 있습니다.');return;}
+  const rec=getRecords().find(r=>r.id===id);
+  if(!rec||rec.status!=='reviewed'){alert('처리할 수 없는 상태입니다.');return;}
+  if(!reviewSigData){alert('서명을 해주세요.');return;}
+  const op=document.getElementById('det-op')?.value||'';
+  updateStatus(id,'approved',{approveOp:op,sig2:reviewSigData});
+  closeDetail();showBanner('home-banner','b-success','🏁 최종 승인 완료!');
+  closePendingSection();updateStats();renderHomeRecent();
+}
+function rejectRec(id){
+  const rec=getRecords().find(r=>r.id===id);
+  if(!rec){return;}
+  if(loginRole==='manager'&&rec.status!=='submitted'){alert('업무담당자는 제출된 기록만 반려할 수 있습니다.');return;}
+  if(loginRole==='confirmer'&&rec.status!=='reviewed'){alert('확인자는 확인완료된 기록만 반려할 수 있습니다.');return;}
+  if(loginRole==='agent'){alert('반려 권한이 없습니다.');return;}
+  const reason=prompt('반려 사유를 입력하세요:');
+  if(reason===null)return;
+  updateStatus(id,'rejected',{rejectReason:reason});
+  closeDetail();showBanner('home-banner','b-danger','❌ 반려 처리되었습니다.');
+  closePendingSection();updateStats();renderHomeRecent();
+}
+function updateStatus(id,status,extra){
+  let recs=getRecords();
+  const idx=recs.findIndex(r=>r.id===id);
+  if(idx>=0){recs[idx]={...recs[idx],status,...extra,updatedAt:new Date().toISOString()};saveRecords(recs);syncSheets(recs[idx]);}
+}
+
+// ── 배너 ──
+function showBanner(id,cls,msg){
+  const el=document.getElementById(id);if(!el)return;
+  el.className='banner '+cls;el.textContent=msg;el.style.display='flex';
+  setTimeout(()=>el.style.display='none',3000);
+}
+
+// ── 설정 ──
+function openPwModal(role){
+  document.getElementById('pw-modal-desc').textContent=ROLES[role]+' 비밀번호를 변경합니다.';
+  document.getElementById('pw-modal').dataset.role=role;
+  ['pw-current','pw-new','pw-confirm'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pw-err').style.display='none';
+  document.getElementById('pw-modal').classList.add('show');
+}
+function closePwModal(){document.getElementById('pw-modal').classList.remove('show');}
+function savePw(){
+  const role=document.getElementById('pw-modal').dataset.role;
+  const cur=document.getElementById('pw-current').value;
+  const nw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-confirm').value;
+  const pws=getPws();
+  const err=document.getElementById('pw-err');
+  if(cur!==pws[role]){err.textContent='현재 비밀번호가 올바르지 않습니다.';err.style.display='block';return;}
+  if(!nw){err.textContent='새 비밀번호를 입력하세요.';err.style.display='block';return;}
+  if(nw!==cf){err.textContent='비밀번호가 일치하지 않습니다.';err.style.display='block';return;}
+  pws[role]=nw;save('elec_pws',pws);closePwModal();
+  alert(ROLES[role]+' 비밀번호가 변경되었습니다.');
+}
+
+function clearData(){
+  if(confirm('모든 점검 기록을 삭제할까요?')){
+    localStorage.removeItem('elec_records');
+    updateStats();renderHomeRecent();
+    if(document.getElementById('page-list').classList.contains('show'))renderList(currentFilter);
+    alert('초기화 완료');
+  }
+}
+// ── Google Sheets 연동 ──
+function syncSheets(rec){
+  const url=load('elec_sheets_url','');
+  if(!url)return;
+  // Apps Script는 JSONP 방식으로 POST
+  fetch(url,{
+    method:'POST',
+    body:JSON.stringify(rec),
+    headers:{'Content-Type':'text/plain'} // Apps Script CORS 우회
+  }).then(r=>r.json()).then(d=>{
+    if(!d.success)console.warn('Sheets sync warn:',d);
+  }).catch(e=>{
+    // no-cors fallback
+    fetch(url+'?data='+encodeURIComponent(JSON.stringify({id:rec.id,status:rec.status,name:rec.name,date:rec.date})),{mode:'no-cors'}).catch(()=>{});
+  });
+}
+
+async function loadFromSheets(){
+  const url=load('elec_sheets_url','');
+  if(!url)return false;
+  try{
+    showBanner('home-banner','b-info','☁️ Google Sheets에서 데이터를 불러오는 중...');
+    const res=await fetch(url);
+    const data=await res.json();
+    if(data.success&&data.records&&data.records.length>0){
+      // 로컬과 병합 (ID 기준, 최신 updatedAt 우선)
+      const local=getRecords();
+      const merged={};
+      [...local,...data.records].forEach(r=>{
+        if(!merged[r.id]||new Date(r.updatedAt)>new Date(merged[r.id].updatedAt)){
+          merged[r.id]=r;
+        }
+      });
+      saveRecords(Object.values(merged));
+      updateStats();renderHomeRecent();
+      showBanner('home-banner','b-success','✅ Google Sheets 동기화 완료! ('+data.records.length+'건)');
+      return true;
+    }
+  }catch(e){
+    showBanner('home-banner','b-warn','⚠️ Google Sheets 연결 실패. 로컬 데이터를 사용합니다.');
+  }
+  return false;
+}
+
+function saveSheets(){
+  const url=document.getElementById('sheets-url').value.trim();
+  save('elec_sheets_url',url);
+  const b=document.getElementById('sheets-status-banner');
+  b.className='banner b-success';b.textContent='✅ Google Sheets URL이 저장되었습니다.';
+  // 저장 후 바로 동기화 시도
+  if(url)setTimeout(()=>loadFromSheets(),500);
+  setTimeout(()=>{b.className='banner b-warn';b.textContent='⚠️ Apps Script URL을 설정하면 여러 기기에서 데이터를 공유할 수 있습니다.';},3000);
+}
+
+// ── 출력 탭 ──
+function initPrintTab(){
+  const sel=document.getElementById('print-select');
+  // 모든 상태 기록 표시 (submitted 포함)
+  const recs=getRecords().slice().reverse();
+  if(!recs.length){
+    sel.innerHTML='<option value="">— 저장된 기록이 없습니다 —</option>';
+  } else {
+    sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
+      recs.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]||r.status}] ${r.date||'날짜없음'} | ${r.name||'이름없음'} | ${r.agentName||''}</option>`).join('');
+  }
+  document.getElementById('print-rec-info').style.display='none';
+  document.getElementById('print-exec-btn').style.display='none';
+  document.getElementById('print-preview-card').style.display='none';
+  // Sheets에서 최신 데이터 동기화 후 목록 갱신
+  const url=load('elec_sheets_url','');
+  if(url){
+    loadFromSheets().then(()=>{
+      const recs2=getRecords().slice().reverse();
+      sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
+        recs2.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]||r.status}] ${r.date||'날짜없음'} | ${r.name||'이름없음'} | ${r.agentName||''}</option>`).join('');
+    }).catch(()=>{});
+  }
+}
+
+function onPrintSelect(){
+  const id=document.getElementById('print-select').value;
+  if(!id){
+    document.getElementById('print-rec-info').style.display='none';
+    document.getElementById('print-exec-btn').style.display='none';
+    document.getElementById('print-preview-card').style.display='none';
+    return;
+  }
+  const rec=getRecords().find(r=>r.id===id);if(!rec)return;
+  document.getElementById('print-rec-info').style.display='block';
+  document.getElementById('print-rec-info').innerHTML=
+    `설비명: <b>${rec.name||'—'}</b><br>점검일: <b>${rec.date||'—'}</b> | 종별: ${rec.type||'—'} | ${rec.cnt||1}회<br>상태: <span class="badge ${S_BADGE[rec.status]}">${S_LABEL[rec.status]}</span>`;
+  document.getElementById('print-exec-btn').style.display='flex';
+  document.getElementById('print-preview-card').style.display='block';
+  document.getElementById('print-preview').innerHTML=buildPrintHTML(rec);
+}
+
+function buildPrintHTML(rec){
+  const rLabel=r=>r==='ok'?'○':r==='ng'?'×':'—';
+  const rStyle=r=>r==='ok'?'color:#3B6D11;font-weight:600':r==='ng'?'color:#A32D2D;font-weight:600':'color:#bbb';
+  const th=s=>`<th style="border:.5px solid #bbb;padding:2px 4px;background:#f0f4fb;font-size:8px;text-align:center;white-space:nowrap">${s}</th>`;
+  const td=s=>`<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center">${s||'—'}</td>`;
+  const tdl=s=>`<td style="border:.5px solid #bbb;padding:2px 5px;font-size:8px">${s}</td>`;
+
+  let loSt=rec.loState||Array(16).fill('na');
+  let hiSt=rec.hiState||Array(16).fill('na');
+  if(typeof loSt==='string'){try{loSt=JSON.parse(loSt);}catch(e){loSt=Array(16).fill('na');}}
+  if(typeof hiSt==='string'){try{hiSt=JSON.parse(hiSt);}catch(e){hiSt=Array(16).fill('na');}}
+
+  const loRows=LOW.map((name,i)=>{const r=loSt[i]||'na';return `<tr>${tdl(name)}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`;}).join('');
+  const hiRows=HIGH.map((name,i)=>{const r=hiSt[i]||'na';return `<tr>${tdl(name)}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`;}).join('');
+
+  let m=rec.meas||{};
+  if(typeof m==='string'){try{m=JSON.parse(m);}catch(e){m={};}}
+
+  const measRow=(g,ph)=>`<tr><td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600;color:#185FA5">${ph}</td>${td(m['v_'+g+'_'+ph])}${td(m['a_'+g+'_'+ph])}${td(m['mm_'+g+'_'+ph])}</tr>`;
+
+  const sigCell=(lbl,name,sub,src)=>`<td style="border:.5px solid #bbb;padding:6px 8px;text-align:center;width:33.3%;vertical-align:middle">
+    <div style="font-size:7px;color:#888;margin-bottom:2px;font-weight:600">${lbl}</div>
+    <div style="font-size:8px;font-weight:600;margin-bottom:4px">${name||'—'}${sub?'<br><span style="font-weight:400;color:#999;font-size:7px">'+sub+'</span>':''}</div>
+    ${src&&src.length>100?'<img src="'+src+'" style="height:38px;max-width:100%;border:.5px solid #ddd;border-radius:3px;display:block;margin:0 auto">':'<div style="height:38px;border:.5px solid #ddd;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:7px;color:#ccc">서명없음</div>'}
+  </td>`;
+
+  const opHtml=rec.op?(rec.opMode==='pen'&&rec.op.startsWith('data:')?`<img src="${rec.op}" style="max-width:100%;height:auto;display:block">`:`<div style="font-size:8px;line-height:1.6">${rec.op}</div>`):'';
+
+  return `<div style="font-family:'Noto Sans KR',sans-serif;max-width:720px;margin:0 auto">
+    <h2 style="text-align:center;font-size:13px;font-weight:600;margin-bottom:6px">전기설비 점검결과 기록표</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:5px">
+      <tr>${th('설비명(상호)')}<td style="border:.5px solid #bbb;padding:2px 6px;font-size:9px;font-weight:600" colspan="3">${rec.name||'—'}</td></tr>
+      <tr>${th('점검일자')}${td(rec.date||'—')}${th('점검종별')}${td(rec.type||'—')}</tr>
+      <tr>${th('점검횟수')}${td((rec.cnt||1)+'회')}${th('상태')}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600">${S_LABEL[rec.status]||rec.status||'—'}</td></tr>
+      <tr>${th('수전')}${td((rec.rv||'—')+'V / '+(rec.rk||'—')+'kW')}${th('발전')}${td((rec.gv||'—')+'V / '+(rec.gk||'—')+'kW'+(rec.sl?' | 태양광 '+rec.sl+'kW':''))}</tr>
+      <tr>${th('업체담당자')}${td((rec.agentName||'—')+' ('+( rec.agentOrg||'—')+')')}${th('수정일시')}${td(rec.updatedAt||rec.date||'—')}</tr>
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:5px">
+      <table style="border-collapse:collapse">
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:3px 4px;background:#E6F1FB;font-size:8px;text-align:center;color:#0C447C">저압설비 점검</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>${loRows}
+      </table>
+      <table style="border-collapse:collapse">
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:3px 4px;background:#FFF3E0;font-size:8px;text-align:center;color:#854F0B">특고(고압)설비 점검</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>${hiRows}
+      </table>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 1 ${m.pos_0?'('+m.pos_0+')':''}</th></tr>
+          <tr>${th('구분')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          ${['R','S','T','N'].map(p=>measRow(0,p)).join('')}
+        </table>
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 2 ${m.pos_1?'('+m.pos_1+')':''}</th></tr>
+          <tr>${th('구분')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          ${['R','S','T','N'].map(p=>measRow(1,p)).join('')}
+        </table>
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#FAEEDA;font-size:8px;text-align:left;color:#854F0B">발전설비 ${m.gen_pos?'('+m.gen_pos+')':''}</th></tr>
+          <tr>${th('No')}${th('전압V')}${th('전류A')}${th('발전량kWh')}</tr>
+          ${[0,1,2,3].map(i=>`<tr><td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:700;color:#854F0B">${i+1}</td>${td(m['gv_'+i])}${td(m['ga_'+i])}${td(m['gkwh_'+i])}</tr>`).join('')}
+        </table>
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#f5f5f5;font-size:8px;text-align:center">역률 / 전력</th></tr>
+          <tr>${th('역률 주간')}${td(m.pf_day)}</tr>
+          <tr>${th('역률 심야')}${td(m.pf_night)}</tr>
+          <tr>${th('유효전력kW')}${td(m.kw)}</tr>
+          <tr>${th('무효전력kVar')}${td(m.kvar)}</tr>
+          <tr>${th('최대전력kW')}${td(m.mkw)}</tr>
+          <tr>${th('배율')}${td(m.ratio)}</tr>
+        </table>
+      </div>
+    </div>
+    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><div style="font-size:7px;font-weight:600;color:#185FA5;margin-bottom:2px">종합의견</div>${opHtml}</div>`:''}
+    ${rec.reviewOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;background:#FFFDF5"><div style="font-size:7px;font-weight:600;color:#854F0B;margin-bottom:2px">업무담당자 검토의견</div><div style="font-size:8px;line-height:1.5">${rec.reviewOp}</div></div>`:''}
+    ${rec.approveOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;background:#F5FFF5"><div style="font-size:7px;font-weight:600;color:#3B6D11;margin-bottom:2px">확인자 승인의견</div><div style="font-size:8px;line-height:1.5">${rec.approveOp}</div></div>`:''}
+    ${rec.rejectReason?`<div style="border:.5px solid #F09595;padding:4px 6px;margin-bottom:4px;background:#FCEBEB"><div style="font-size:7px;font-weight:600;color:#A32D2D;margin-bottom:2px">반려사유</div><div style="font-size:8px;line-height:1.5">${rec.rejectReason}</div></div>`:''}
+    <table style="width:100%;border-collapse:collapse;margin-top:6px">
+      <tr>
+        ${sigCell('업체담당자',rec.agentName,rec.agentOrg,rec.sig0)}
+        ${sigCell('업무담당자','',rec.reviewOp?'검토완료':'미검토',rec.sig1)}
+        ${sigCell('확인자','',rec.approveOp?'승인완료':'미승인',rec.sig2)}
+      </tr>
+    </table>
+    <div style="font-size:7px;color:#aaa;text-align:center;margin-top:5px">※ 전기설비의 개·보수 작업은 반드시 정전상태에서 시행하시기 바랍니다.</div>
+  </div>`;
+}
+
+function doPrint(){
+  const id=document.getElementById('print-select').value;
+  if(!id){alert('출력할 기록을 선택하세요.');return;}
+  const rec=getRecords().find(r=>r.id===id);if(!rec)return;
+  const html=buildPrintHTML(rec);
+  const w=window.open('','_print','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans KR',sans-serif;padding:10mm}
+    @page{size:A4;margin:8mm}@media print{body{padding:0}}</style>
+    </head><body>${html}<script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
+  w.document.close();
+}
+
+window.addEventListener('load',()=>{
+  const url=load('elec_sheets_url','');
+  if(url)document.getElementById('sheets-url').value=url;
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+});
+</script>
+</body>
+</html>
