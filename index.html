@@ -1094,7 +1094,17 @@ function clearData(){
 function syncSheets(rec){
   const url=load('elec_sheets_url','');
   if(!url)return;
-  fetch(url,{method:'POST',mode:'no-cors',body:JSON.stringify(rec),headers:{'Content-Type':'application/json'}}).catch(()=>{});
+  // Apps Script는 JSONP 방식으로 POST
+  fetch(url,{
+    method:'POST',
+    body:JSON.stringify(rec),
+    headers:{'Content-Type':'text/plain'} // Apps Script CORS 우회
+  }).then(r=>r.json()).then(d=>{
+    if(!d.success)console.warn('Sheets sync warn:',d);
+  }).catch(e=>{
+    // no-cors fallback
+    fetch(url+'?data='+encodeURIComponent(JSON.stringify({id:rec.id,status:rec.status,name:rec.name,date:rec.date})),{mode:'no-cors'}).catch(()=>{});
+  });
 }
 
 async function loadFromSheets(){
