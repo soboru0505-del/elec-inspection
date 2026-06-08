@@ -1147,12 +1147,26 @@ function saveSheets(){
 // ── 출력 탭 ──
 function initPrintTab(){
   const sel=document.getElementById('print-select');
-  const recs=getRecords().filter(r=>r.status==='approved'||r.status==='reviewed').reverse();
-  sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
-    recs.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]}] ${r.date||'날짜없음'} | ${r.name||'이름없음'}</option>`).join('');
+  // 모든 상태 기록 표시 (submitted 포함)
+  const recs=getRecords().slice().reverse();
+  if(!recs.length){
+    sel.innerHTML='<option value="">— 저장된 기록이 없습니다 —</option>';
+  } else {
+    sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
+      recs.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]||r.status}] ${r.date||'날짜없음'} | ${r.name||'이름없음'} | ${r.agentName||''}</option>`).join('');
+  }
   document.getElementById('print-rec-info').style.display='none';
   document.getElementById('print-exec-btn').style.display='none';
   document.getElementById('print-preview-card').style.display='none';
+  // Sheets에서 최신 데이터 동기화 후 목록 갱신
+  const url=load('elec_sheets_url','');
+  if(url){
+    loadFromSheets().then(()=>{
+      const recs2=getRecords().slice().reverse();
+      sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
+        recs2.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]||r.status}] ${r.date||'날짜없음'} | ${r.name||'이름없음'} | ${r.agentName||''}</option>`).join('');
+    }).catch(()=>{});
+  }
 }
 
 function onPrintSelect(){
@@ -1174,77 +1188,86 @@ function onPrintSelect(){
 
 function buildPrintHTML(rec){
   const rLabel=r=>r==='ok'?'○':r==='ng'?'×':'—';
-  const rStyle=r=>r==='ok'?'color:#3B6D11;font-weight:600':r==='ng'?'color:#A32D2D;font-weight:600':'color:#999';
+  const rStyle=r=>r==='ok'?'color:#3B6D11;font-weight:600':r==='ng'?'color:#A32D2D;font-weight:600':'color:#bbb';
   const th=s=>`<th style="border:.5px solid #bbb;padding:2px 4px;background:#f0f4fb;font-size:8px;text-align:center;white-space:nowrap">${s}</th>`;
   const td=s=>`<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center">${s||'—'}</td>`;
   const tdl=s=>`<td style="border:.5px solid #bbb;padding:2px 5px;font-size:8px">${s}</td>`;
 
-  const loRows=(rec.loState||[]).map((r,i)=>`<tr>${tdl(LOW[i])}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`).join('');
-  const hiRows=(rec.hiState||[]).map((r,i)=>`<tr>${tdl(HIGH[i])}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`).join('');
+  let loSt=rec.loState||Array(16).fill('na');
+  let hiSt=rec.hiState||Array(16).fill('na');
+  if(typeof loSt==='string'){try{loSt=JSON.parse(loSt);}catch(e){loSt=Array(16).fill('na');}}
+  if(typeof hiSt==='string'){try{hiSt=JSON.parse(hiSt);}catch(e){hiSt=Array(16).fill('na');}}
 
-  const m=rec.meas||{};
-  const measRow=(g,ph)=>`<tr>
-    <td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600;color:#185FA5">${ph}</td>
-    ${td(m['v_'+g+'_'+ph])}${td(m['a_'+g+'_'+ph])}${td(m['mm_'+g+'_'+ph])}
-  </tr>`;
+  const loRows=LOW.map((name,i)=>{const r=loSt[i]||'na';return `<tr>${tdl(name)}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`;}).join('');
+  const hiRows=HIGH.map((name,i)=>{const r=hiSt[i]||'na';return `<tr>${tdl(name)}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`;}).join('');
 
-  const sigCell=(lbl,name,sub,src)=>`<td style="border:.5px solid #bbb;padding:6px 8px;text-align:center;width:33.3%;vertical-align:top">
-    <div style="font-size:7px;color:#888;margin-bottom:2px">${lbl}</div>
-    <div style="font-size:8px;font-weight:600;margin-bottom:4px">${name||'—'}${sub?'<br><span style="font-weight:400;color:#999">'+sub+'</span>':''}</div>
-    ${src?'<img src="'+src+'" style="height:36px;border:.5px solid #ddd;border-radius:3px;display:block;margin:0 auto">':'<div style="height:36px;border:.5px solid #ddd;border-radius:3px"></div>'}
+  let m=rec.meas||{};
+  if(typeof m==='string'){try{m=JSON.parse(m);}catch(e){m={};}}
+
+  const measRow=(g,ph)=>`<tr><td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600;color:#185FA5">${ph}</td>${td(m['v_'+g+'_'+ph])}${td(m['a_'+g+'_'+ph])}${td(m['mm_'+g+'_'+ph])}</tr>`;
+
+  const sigCell=(lbl,name,sub,src)=>`<td style="border:.5px solid #bbb;padding:6px 8px;text-align:center;width:33.3%;vertical-align:middle">
+    <div style="font-size:7px;color:#888;margin-bottom:2px;font-weight:600">${lbl}</div>
+    <div style="font-size:8px;font-weight:600;margin-bottom:4px">${name||'—'}${sub?'<br><span style="font-weight:400;color:#999;font-size:7px">'+sub+'</span>':''}</div>
+    ${src&&src.length>100?'<img src="'+src+'" style="height:38px;max-width:100%;border:.5px solid #ddd;border-radius:3px;display:block;margin:0 auto">':'<div style="height:38px;border:.5px solid #ddd;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:7px;color:#ccc">서명없음</div>'}
   </td>`;
 
-  return `<div style="font-family:'Noto Sans KR',sans-serif;max-width:720px;margin:0 auto;font-size:8px">
-    <h2 style="text-align:center;font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:-.3px">전기설비 점검결과 기록표</h2>
+  const opHtml=rec.op?(rec.opMode==='pen'&&rec.op.startsWith('data:')?`<img src="${rec.op}" style="max-width:100%;height:auto;display:block">`:`<div style="font-size:8px;line-height:1.6">${rec.op}</div>`):'';
+
+  return `<div style="font-family:'Noto Sans KR',sans-serif;max-width:720px;margin:0 auto">
+    <h2 style="text-align:center;font-size:13px;font-weight:600;margin-bottom:6px">전기설비 점검결과 기록표</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:5px">
-      <tr>
-        ${th('설비명')}<td style="border:.5px solid #bbb;padding:2px 5px;font-size:9px;font-weight:600" colspan="3">${rec.name||'—'}</td>
-      </tr>
-      <tr>${th('점검일자')}${td(rec.date)}${th('종별/횟수')}${td((rec.type||'—')+' / '+(rec.cnt||1)+'회')}</tr>
-      <tr>${th('수전')}${td((rec.rv||'—')+'V / '+(rec.rk||'—')+'kW')}${th('발전')}${td((rec.gv||'—')+'V / '+(rec.gk||'—')+'kW'+(rec.sl?' / 태양광 '+rec.sl+'kW':'')+'')}
-      </tr>
+      <tr>${th('설비명(상호)')}<td style="border:.5px solid #bbb;padding:2px 6px;font-size:9px;font-weight:600" colspan="3">${rec.name||'—'}</td></tr>
+      <tr>${th('점검일자')}${td(rec.date||'—')}${th('점검종별')}${td(rec.type||'—')}</tr>
+      <tr>${th('점검횟수')}${td((rec.cnt||1)+'회')}${th('상태')}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600">${S_LABEL[rec.status]||rec.status||'—'}</td></tr>
+      <tr>${th('수전')}${td((rec.rv||'—')+'V / '+(rec.rk||'—')+'kW')}${th('발전')}${td((rec.gv||'—')+'V / '+(rec.gk||'—')+'kW'+(rec.sl?' | 태양광 '+rec.sl+'kW':''))}</tr>
+      <tr>${th('업체담당자')}${td((rec.agentName||'—')+' ('+( rec.agentOrg||'—')+')')}${th('수정일시')}${td(rec.updatedAt||rec.date||'—')}</tr>
     </table>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:5px">
       <table style="border-collapse:collapse">
-        <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#e8f0fb;font-size:8px;text-align:center">저압설비</th></tr>
-        <tr>${th('설비명')}${th('결과')}</tr>
-        ${loRows}
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:3px 4px;background:#E6F1FB;font-size:8px;text-align:center;color:#0C447C">저압설비 점검</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>${loRows}
       </table>
       <table style="border-collapse:collapse">
-        <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#fff3e0;font-size:8px;text-align:center">특고(고압)설비</th></tr>
-        <tr>${th('설비명')}${th('결과')}</tr>
-        ${hiRows}
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:3px 4px;background:#FFF3E0;font-size:8px;text-align:center;color:#854F0B">특고(고압)설비 점검</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>${hiRows}
       </table>
-      <div>
-        <table style="border-collapse:collapse;width:100%;margin-bottom:4px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <table style="border-collapse:collapse;width:100%">
           <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 1 ${m.pos_0?'('+m.pos_0+')':''}</th></tr>
-          <tr>${th('상')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          <tr>${th('구분')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
           ${['R','S','T','N'].map(p=>measRow(0,p)).join('')}
         </table>
-        <table style="border-collapse:collapse;width:100%;margin-bottom:4px">
+        <table style="border-collapse:collapse;width:100%">
           <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 2 ${m.pos_1?'('+m.pos_1+')':''}</th></tr>
-          <tr>${th('상')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          <tr>${th('구분')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
           ${['R','S','T','N'].map(p=>measRow(1,p)).join('')}
         </table>
         <table style="border-collapse:collapse;width:100%">
-          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#fff3e0;font-size:8px;text-align:left">발전설비 ${m.gen_pos?'('+m.gen_pos+')':''}</th></tr>
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#FAEEDA;font-size:8px;text-align:left;color:#854F0B">발전설비 ${m.gen_pos?'('+m.gen_pos+')':''}</th></tr>
           <tr>${th('No')}${th('전압V')}${th('전류A')}${th('발전량kWh')}</tr>
           ${[0,1,2,3].map(i=>`<tr><td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:700;color:#854F0B">${i+1}</td>${td(m['gv_'+i])}${td(m['ga_'+i])}${td(m['gkwh_'+i])}</tr>`).join('')}
         </table>
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#f5f5f5;font-size:8px;text-align:center">역률 / 전력</th></tr>
+          <tr>${th('역률 주간')}${td(m.pf_day)}</tr>
+          <tr>${th('역률 심야')}${td(m.pf_night)}</tr>
+          <tr>${th('유효전력kW')}${td(m.kw)}</tr>
+          <tr>${th('무효전력kVar')}${td(m.kvar)}</tr>
+          <tr>${th('최대전력kW')}${td(m.mkw)}</tr>
+          <tr>${th('배율')}${td(m.ratio)}</tr>
+        </table>
       </div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:4px">
-      <tr>${th('역률 주간')}${th('역률 심야')}${th('유효전력kW')}${th('무효전력kVar')}${th('최대전력kW')}${th('배율')}</tr>
-      <tr>${td(m.pf_day)}${td(m.pf_night)}${td(m.kw)}${td(m.kvar)}${td(m.mkw)}${td(m.ratio)}</tr>
-    </table>
-    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><span style="font-size:7px;font-weight:600">종합의견</span><div style="margin-top:2px">${rec.opMode==='pen'?`<img src="${rec.op}" style="max-width:100%;height:auto;display:block">`:`<div style="font-size:8px;line-height:1.5">${rec.op}</div>`}</div></div>`:``}
-    ${rec.reviewOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#854F0B">업무담당자 검토의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.reviewOp}</div></div>`:''}
-    ${rec.approveOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#3B6D11">확인자 승인의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.approveOp}</div></div>`:''}
-    <table style="width:100%;border-collapse:collapse;margin-top:5px">
+    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><div style="font-size:7px;font-weight:600;color:#185FA5;margin-bottom:2px">종합의견</div>${opHtml}</div>`:''}
+    ${rec.reviewOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;background:#FFFDF5"><div style="font-size:7px;font-weight:600;color:#854F0B;margin-bottom:2px">업무담당자 검토의견</div><div style="font-size:8px;line-height:1.5">${rec.reviewOp}</div></div>`:''}
+    ${rec.approveOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;background:#F5FFF5"><div style="font-size:7px;font-weight:600;color:#3B6D11;margin-bottom:2px">확인자 승인의견</div><div style="font-size:8px;line-height:1.5">${rec.approveOp}</div></div>`:''}
+    ${rec.rejectReason?`<div style="border:.5px solid #F09595;padding:4px 6px;margin-bottom:4px;background:#FCEBEB"><div style="font-size:7px;font-weight:600;color:#A32D2D;margin-bottom:2px">반려사유</div><div style="font-size:8px;line-height:1.5">${rec.rejectReason}</div></div>`:''}
+    <table style="width:100%;border-collapse:collapse;margin-top:6px">
       <tr>
         ${sigCell('업체담당자',rec.agentName,rec.agentOrg,rec.sig0)}
-        ${sigCell('업무담당자',rec.mgrName||(rec.reviewOp?'확인완료':''),rec.mgrDept||'—',rec.sig1)}
-        ${sigCell('확인자',rec.confName||(rec.approveOp?'승인완료':''),rec.confPos||'—',rec.sig2)}
+        ${sigCell('업무담당자','',rec.reviewOp?'검토완료':'미검토',rec.sig1)}
+        ${sigCell('확인자','',rec.approveOp?'승인완료':'미승인',rec.sig2)}
       </tr>
     </table>
     <div style="font-size:7px;color:#aaa;text-align:center;margin-top:5px">※ 전기설비의 개·보수 작업은 반드시 정전상태에서 시행하시기 바랍니다.</div>
