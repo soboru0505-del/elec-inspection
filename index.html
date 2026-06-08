@@ -338,7 +338,10 @@ body{max-width:600px;margin:0 auto;min-height:100vh}
       <div class="fg"><span class="fl">Apps Script 웹 앱 URL</span>
         <input class="fi" id="sheets-url" placeholder="https://script.google.com/..." style="font-size:11px">
       </div>
-      <button class="btn-p" onclick="saveSheets()">💾 저장</button>
+      <div class="btn-row">
+        <button class="btn-p" onclick="saveSheets()">💾 저장</button>
+        <button class="btn-s" onclick="loadFromSheets()">☁️ 지금 동기화</button>
+      </div>
     </div>
     <div class="card">
       <div class="card-title"><div class="ico">🔒</div> 비밀번호 변경</div>
@@ -426,6 +429,9 @@ function doLogin(){
     document.getElementById('hdr-role').textContent=ROLES[loginRole];
     document.getElementById('login-pw').value='';
     document.getElementById('tab-record').style.display=loginRole==='agent'?'flex':'none';
+    // 로그인 시 Sheets 자동 동기화
+    const sheetsUrl=load('elec_sheets_url','');
+    if(sheetsUrl)setTimeout(()=>loadFromSheets(),800);
     document.getElementById('tab-print').style.display=(loginRole==='manager'||loginRole==='confirmer')?'flex':'none';
     document.getElementById('tab-settings').style.display=(loginRole==='confirmer'||loginRole==='manager')?'flex':'none';
     document.getElementById('home-fab').style.display=loginRole==='agent'?'flex':'none';
@@ -1075,13 +1081,7 @@ function savePw(){
   pws[role]=nw;save('elec_pws',pws);closePwModal();
   alert(ROLES[role]+' 비밀번호가 변경되었습니다.');
 }
-function saveSheets(){
-  const url=document.getElementById('sheets-url').value.trim();
-  save('elec_sheets_url',url);
-  const b=document.getElementById('sheets-status-banner');
-  b.className='banner b-success';b.textContent='✅ Google Sheets URL이 저장되었습니다.';
-  setTimeout(()=>{b.className='banner b-warn';b.textContent='⚠️ Apps Script URL을 설정하면 여러 기기에서 데이터를 공유할 수 있습니다.';},2500);
-}
+
 function clearData(){
   if(confirm('모든 점검 기록을 삭제할까요?')){
     localStorage.removeItem('elec_records');
@@ -1090,10 +1090,48 @@ function clearData(){
     alert('초기화 완료');
   }
 }
+// ── Google Sheets 연동 ──
 function syncSheets(rec){
   const url=load('elec_sheets_url','');
   if(!url)return;
   fetch(url,{method:'POST',mode:'no-cors',body:JSON.stringify(rec),headers:{'Content-Type':'application/json'}}).catch(()=>{});
+}
+
+async function loadFromSheets(){
+  const url=load('elec_sheets_url','');
+  if(!url)return false;
+  try{
+    showBanner('home-banner','b-info','☁️ Google Sheets에서 데이터를 불러오는 중...');
+    const res=await fetch(url);
+    const data=await res.json();
+    if(data.success&&data.records&&data.records.length>0){
+      // 로컬과 병합 (ID 기준, 최신 updatedAt 우선)
+      const local=getRecords();
+      const merged={};
+      [...local,...data.records].forEach(r=>{
+        if(!merged[r.id]||new Date(r.updatedAt)>new Date(merged[r.id].updatedAt)){
+          merged[r.id]=r;
+        }
+      });
+      saveRecords(Object.values(merged));
+      updateStats();renderHomeRecent();
+      showBanner('home-banner','b-success','✅ Google Sheets 동기화 완료! ('+data.records.length+'건)');
+      return true;
+    }
+  }catch(e){
+    showBanner('home-banner','b-warn','⚠️ Google Sheets 연결 실패. 로컬 데이터를 사용합니다.');
+  }
+  return false;
+}
+
+function saveSheets(){
+  const url=document.getElementById('sheets-url').value.trim();
+  save('elec_sheets_url',url);
+  const b=document.getElementById('sheets-status-banner');
+  b.className='banner b-success';b.textContent='✅ Google Sheets URL이 저장되었습니다.';
+  // 저장 후 바로 동기화 시도
+  if(url)setTimeout(()=>loadFromSheets(),500);
+  setTimeout(()=>{b.className='banner b-warn';b.textContent='⚠️ Apps Script URL을 설정하면 여러 기기에서 데이터를 공유할 수 있습니다.';},3000);
 }
 
 // ── 출력 탭 ──
