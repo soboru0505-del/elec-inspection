@@ -239,6 +239,7 @@ body{max-width:600px;margin:0 auto;min-height:100vh}
     <button class="tab active" onclick="goTab('home')" id="tab-home"><span class="ti">🏠</span>홈</button>
     <button class="tab" onclick="goTab('list')" id="tab-list"><span class="ti">📁</span>목록</button>
     <button class="tab" onclick="goTab('record')" id="tab-record"><span class="ti">📋</span>기록</button>
+    <button class="tab" onclick="goTab('print')" id="tab-print"><span class="ti">🖨️</span>출력</button>
     <button class="tab" onclick="goTab('settings')" id="tab-settings"><span class="ti">⚙️</span>설정</button>
   </nav>
 
@@ -294,6 +295,26 @@ body{max-width:600px;margin:0 auto;min-height:100vh}
   <!-- 기록 작성 -->
   <div class="page" id="page-record">
     <div id="record-view"></div>
+  </div>
+
+  <!-- 출력 -->
+  <div class="page" id="page-print">
+    <div id="print-banner"></div>
+    <div class="card">
+      <div class="card-title"><div class="ico">🖨️</div> 점검결과표 출력</div>
+      <div class="fg">
+        <span class="fl">출력할 기록 선택</span>
+        <select class="fi" id="print-select" onchange="onPrintSelect()">
+          <option value="">— 기록을 선택하세요 —</option>
+        </select>
+      </div>
+      <div id="print-rec-info" style="display:none;background:var(--blue-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--blue-dark);line-height:1.9;margin-bottom:12px"></div>
+      <button class="btn-p" id="print-exec-btn" onclick="doPrint()" style="display:none">🖨️ A4 인쇄 / PDF 저장</button>
+    </div>
+    <div class="card" id="print-preview-card" style="display:none">
+      <div class="card-title"><div class="ico">👁️</div> 미리보기</div>
+      <div id="print-preview" style="font-size:11px;transform-origin:top left"></div>
+    </div>
   </div>
 
   <!-- 설정 -->
@@ -392,6 +413,7 @@ function doLogin(){
     document.getElementById('hdr-role').textContent=ROLES[loginRole];
     document.getElementById('login-pw').value='';
     document.getElementById('tab-record').style.display=loginRole==='agent'?'flex':'none';
+    document.getElementById('tab-print').style.display=(loginRole==='manager'||loginRole==='confirmer')?'flex':'none';
     document.getElementById('tab-settings').style.display=loginRole==='confirmer'?'flex':'none';
     document.getElementById('home-fab').style.display=loginRole==='agent'?'flex':'none';
     updateFlow();updateStats();renderHomeRecent();goTab('home');
@@ -414,6 +436,7 @@ function goTab(t){
   if(t==='list')renderList(currentFilter);
   if(t==='home'){updateStats();renderHomeRecent();}
   if(t==='record'&&!editingId)startNewRecord();
+  if(t==='print')initPrintTab();
   window.scrollTo(0,0);
 }
 
@@ -918,6 +941,127 @@ function syncSheets(rec){
   const url=load('elec_sheets_url','');
   if(!url)return;
   fetch(url,{method:'POST',mode:'no-cors',body:JSON.stringify(rec),headers:{'Content-Type':'application/json'}}).catch(()=>{});
+}
+
+// ── 출력 탭 ──
+function initPrintTab(){
+  const sel=document.getElementById('print-select');
+  const recs=getRecords().filter(r=>r.status==='approved'||r.status==='reviewed').reverse();
+  sel.innerHTML='<option value="">— 기록을 선택하세요 —</option>'+
+    recs.map(r=>`<option value="${r.id}">[${S_LABEL[r.status]}] ${r.date||'날짜없음'} | ${r.name||'이름없음'}</option>`).join('');
+  document.getElementById('print-rec-info').style.display='none';
+  document.getElementById('print-exec-btn').style.display='none';
+  document.getElementById('print-preview-card').style.display='none';
+}
+
+function onPrintSelect(){
+  const id=document.getElementById('print-select').value;
+  if(!id){
+    document.getElementById('print-rec-info').style.display='none';
+    document.getElementById('print-exec-btn').style.display='none';
+    document.getElementById('print-preview-card').style.display='none';
+    return;
+  }
+  const rec=getRecords().find(r=>r.id===id);if(!rec)return;
+  document.getElementById('print-rec-info').style.display='block';
+  document.getElementById('print-rec-info').innerHTML=
+    `설비명: <b>${rec.name||'—'}</b><br>점검일: <b>${rec.date||'—'}</b> | 종별: ${rec.type||'—'} | ${rec.cnt||1}회<br>상태: <span class="badge ${S_BADGE[rec.status]}">${S_LABEL[rec.status]}</span>`;
+  document.getElementById('print-exec-btn').style.display='flex';
+  document.getElementById('print-preview-card').style.display='block';
+  document.getElementById('print-preview').innerHTML=buildPrintHTML(rec);
+}
+
+function buildPrintHTML(rec){
+  const rLabel=r=>r==='ok'?'○':r==='ng'?'×':'—';
+  const rStyle=r=>r==='ok'?'color:#3B6D11;font-weight:600':r==='ng'?'color:#A32D2D;font-weight:600':'color:#999';
+  const th=s=>`<th style="border:.5px solid #bbb;padding:2px 4px;background:#f0f4fb;font-size:8px;text-align:center;white-space:nowrap">${s}</th>`;
+  const td=s=>`<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center">${s||'—'}</td>`;
+  const tdl=s=>`<td style="border:.5px solid #bbb;padding:2px 5px;font-size:8px">${s}</td>`;
+
+  const loRows=(rec.loState||[]).map((r,i)=>`<tr>${tdl(LOW[i])}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`).join('');
+  const hiRows=(rec.hiState||[]).map((r,i)=>`<tr>${tdl(HIGH[i])}<td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;${rStyle(r)}">${rLabel(r)}</td></tr>`).join('');
+
+  const m=rec.meas||{};
+  const measRow=(g,ph)=>`<tr>
+    <td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:600;color:#185FA5">${ph}</td>
+    ${td(m['v_'+g+'_'+ph])}${td(m['a_'+g+'_'+ph])}${td(m['mm_'+g+'_'+ph])}
+  </tr>`;
+
+  const sigCell=(lbl,name,sub,src)=>`<td style="border:.5px solid #bbb;padding:6px 8px;text-align:center;width:33.3%;vertical-align:top">
+    <div style="font-size:7px;color:#888;margin-bottom:2px">${lbl}</div>
+    <div style="font-size:8px;font-weight:600;margin-bottom:4px">${name||'—'}${sub?'<br><span style="font-weight:400;color:#999">'+sub+'</span>':''}</div>
+    ${src?'<img src="'+src+'" style="height:36px;border:.5px solid #ddd;border-radius:3px;display:block;margin:0 auto">':'<div style="height:36px;border:.5px solid #ddd;border-radius:3px"></div>'}
+  </td>`;
+
+  return `<div style="font-family:'Noto Sans KR',sans-serif;max-width:720px;margin:0 auto;font-size:8px">
+    <h2 style="text-align:center;font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:-.3px">전기설비 점검결과 기록표</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:5px">
+      <tr>
+        ${th('설비명')}<td style="border:.5px solid #bbb;padding:2px 5px;font-size:9px;font-weight:600" colspan="3">${rec.name||'—'}</td>
+      </tr>
+      <tr>${th('점검일자')}${td(rec.date)}${th('종별/횟수')}${td((rec.type||'—')+' / '+(rec.cnt||1)+'회')}</tr>
+      <tr>${th('수전')}${td((rec.rv||'—')+'V / '+(rec.rk||'—')+'kW')}${th('발전')}${td((rec.gv||'—')+'V / '+(rec.gk||'—')+'kW'+(rec.sl?' / 태양광 '+rec.sl+'kW':'')+'')}
+      </tr>
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:5px">
+      <table style="border-collapse:collapse">
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#e8f0fb;font-size:8px;text-align:center">저압설비</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>
+        ${loRows}
+      </table>
+      <table style="border-collapse:collapse">
+        <tr><th colspan="2" style="border:.5px solid #bbb;padding:2px 4px;background:#fff3e0;font-size:8px;text-align:center">특고(고압)설비</th></tr>
+        <tr>${th('설비명')}${th('결과')}</tr>
+        ${hiRows}
+      </table>
+      <div>
+        <table style="border-collapse:collapse;width:100%;margin-bottom:4px">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 1 ${m.pos_0?'('+m.pos_0+')':''}</th></tr>
+          <tr>${th('상')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          ${['R','S','T','N'].map(p=>measRow(0,p)).join('')}
+        </table>
+        <table style="border-collapse:collapse;width:100%;margin-bottom:4px">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#f0f5ff;font-size:8px;text-align:left">측정개소 2 ${m.pos_1?'('+m.pos_1+')':''}</th></tr>
+          <tr>${th('상')}${th('전압V')}${th('전류A')}${th('누설㎃')}</tr>
+          ${['R','S','T','N'].map(p=>measRow(1,p)).join('')}
+        </table>
+        <table style="border-collapse:collapse;width:100%">
+          <tr><th colspan="4" style="border:.5px solid #bbb;padding:2px 4px;background:#fff3e0;font-size:8px;text-align:left">발전설비 ${m.gen_pos?'('+m.gen_pos+')':''}</th></tr>
+          <tr>${th('No')}${th('전압V')}${th('전류A')}${th('발전량kWh')}</tr>
+          ${[0,1,2,3].map(i=>`<tr><td style="border:.5px solid #bbb;padding:2px 4px;font-size:8px;text-align:center;font-weight:700;color:#854F0B">${i+1}</td>${td(m['gv_'+i])}${td(m['ga_'+i])}${td(m['gkwh_'+i])}</tr>`).join('')}
+        </table>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:4px">
+      <tr>${th('역률 주간')}${th('역률 심야')}${th('유효전력kW')}${th('무효전력kVar')}${th('최대전력kW')}${th('배율')}</tr>
+      <tr>${td(m.pf_day)}${td(m.pf_night)}${td(m.kw)}${td(m.kvar)}${td(m.mkw)}${td(m.ratio)}</tr>
+    </table>
+    ${rec.op?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px;min-height:24px"><span style="font-size:7px;font-weight:600">종합의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.op}</div></div>`:''}
+    ${rec.reviewOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#854F0B">업무담당자 검토의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.reviewOp}</div></div>`:''}
+    ${rec.approveOp?`<div style="border:.5px solid #bbb;padding:4px 6px;margin-bottom:4px"><span style="font-size:7px;font-weight:600;color:#3B6D11">확인자 승인의견</span><div style="font-size:8px;line-height:1.5;margin-top:2px">${rec.approveOp}</div></div>`:''}
+    <table style="width:100%;border-collapse:collapse;margin-top:5px">
+      <tr>
+        ${sigCell('업체담당자',rec.agentName,rec.agentOrg,rec.sig0)}
+        ${sigCell('업무담당자',rec.mgrName||(rec.reviewOp?'확인완료':''),rec.mgrDept||'—',rec.sig1)}
+        ${sigCell('확인자',rec.confName||(rec.approveOp?'승인완료':''),rec.confPos||'—',rec.sig2)}
+      </tr>
+    </table>
+    <div style="font-size:7px;color:#aaa;text-align:center;margin-top:5px">※ 전기설비의 개·보수 작업은 반드시 정전상태에서 시행하시기 바랍니다.</div>
+  </div>`;
+}
+
+function doPrint(){
+  const id=document.getElementById('print-select').value;
+  if(!id){alert('출력할 기록을 선택하세요.');return;}
+  const rec=getRecords().find(r=>r.id===id);if(!rec)return;
+  const html=buildPrintHTML(rec);
+  const w=window.open('','_print','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans KR',sans-serif;padding:10mm}
+    @page{size:A4;margin:8mm}@media print{body{padding:0}}</style>
+    </head><body>${html}<script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
+  w.document.close();
 }
 
 window.addEventListener('load',()=>{
